@@ -3,27 +3,19 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AuthButton } from '@/components/auth/auth-button';
 import { AppHeader } from '@/components/wyre/app-header';
 import { WyreColors } from '@/constants/theme';
 import { getUserDisplayName, getUserInitials, getUserRoleLabel } from '@/lib/user-display';
-import { logUserOut } from '@/redux/actions/auth/auth.action';
-import { useAppDispatch, useAppSelector } from '@/redux/hooks';
+import { useAppSelector } from '@/redux/hooks';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const dispatch = useAppDispatch();
   const userData = useAppSelector((state) => state.auth.userData);
 
   const displayName = getUserDisplayName(userData);
   const initials = getUserInitials(userData);
   const roleLabel = getUserRoleLabel(userData);
   const email = typeof userData?.email === 'string' ? userData.email : null;
-
-  const onLogout = async () => {
-    await dispatch(logUserOut());
-    router.replace('/(auth)/login');
-  };
 
   return (
     <View style={styles.root}>
@@ -41,7 +33,7 @@ export default function ProfileScreen() {
       />
 
       <View style={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        <Text style={styles.title}>Profile & Settings</Text>
+        <Text style={styles.title}>Profile</Text>
 
         <View style={styles.profileCard}>
           <View style={styles.avatarLarge}>
@@ -53,13 +45,11 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={styles.sectionTitle}>Account details</Text>
           <Text style={styles.sectionBody}>
-            Manage your Wyre solar dashboard account. More settings will be added here.
+            Your Wyre solar dashboard account information. More profile options will be added here.
           </Text>
         </View>
-
-        <AuthButton title="Log out" onPress={onLogout} variant="danger" style={styles.logoutBtn} />
       </View>
     </View>
   );
@@ -126,7 +116,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   section: {
-    marginBottom: 28,
     gap: 6,
   },
   sectionTitle: {
@@ -138,9 +127,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: WyreColors.textSecondary,
-  },
-  logoutBtn: {
-    marginTop: 'auto',
   },
   closeBtn: {
     width: 40,

@@ -86,6 +86,13 @@ function RootNavigator() {
               animation: 'slide_from_right',
             }}
           />
+          <Stack.Screen
+            name="settings"
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
         </Stack>
       </AuthBootstrap>
       <StatusBar style="dark" />

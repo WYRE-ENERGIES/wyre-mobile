@@ -1,6 +1,7 @@
-import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
+import { ProfileSideMenu } from '@/components/wyre/profile-side-menu';
 import { WyreColors } from '@/constants/theme';
 import { getUserInitials } from '@/lib/user-display';
 import { useAppSelector } from '@/redux/hooks';
@@ -12,19 +13,24 @@ type UserAvatarButtonProps = {
 export function UserAvatarButton({ size = 40 }: UserAvatarButtonProps) {
   const userData = useAppSelector((state) => state.auth.userData);
   const initials = getUserInitials(userData);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   return (
-    <Pressable
-      onPress={() => router.push('/profile')}
-      style={({ pressed }) => [
-        styles.avatar,
-        { width: size, height: size, borderRadius: size / 2 },
-        pressed && styles.pressed,
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel="Open profile and settings">
-      <Text style={[styles.initials, { fontSize: size * 0.36 }]}>{initials}</Text>
-    </Pressable>
+    <>
+      <Pressable
+        onPress={() => setMenuVisible(true)}
+        style={({ pressed }) => [
+          styles.avatar,
+          { width: size, height: size, borderRadius: size / 2 },
+          pressed && styles.pressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Open account menu">
+        <Text style={[styles.initials, { fontSize: size * 0.36 }]}>{initials}</Text>
+      </Pressable>
+
+      <ProfileSideMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
+    </>
   );
 }
 
