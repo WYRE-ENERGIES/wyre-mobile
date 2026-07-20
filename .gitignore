@@ -2,6 +2,8 @@
 
 # dependencies
 node_modules/
+jspm_packages/
+.pnpm-store
 
 # Expo
 .expo/
@@ -21,18 +23,45 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
-# debug
+# Logs
+logs
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+lerna-debug.log*
 
 # macOS
 .DS_Store
 *.pem
 
 # local env files
-.env*.local
 .env
+.env.*
+!.env.example
+
+# caches / tooling
+.npm
+.eslintcache
+.stylelintcache
+.cache
+.parcel-cache
+*.tsbuildinfo
+
+# Yarn
+.yarn-integrity
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# coverage / test
+coverage
+*.lcov
+.nyc_output
 
 # typescript
 *.tsbuildinfo
