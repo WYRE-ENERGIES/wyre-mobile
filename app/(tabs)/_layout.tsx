@@ -28,17 +28,17 @@ export default function TabLayout() {
       minimizeBehavior="never">
       <NativeTabs.Trigger name="index">
         <Icon
-          sf={{ default: 'house', selected: 'house.fill' }}
+          sf={{ default: 'square.grid.3x3', selected: 'square.grid.3x3.fill' }}
           selectedColor={WyreColors.purple}
         />
-        <Label>Home</Label>
+        <Label>Solar</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="branches">
         <Icon
-          sf={{ default: 'building.2', selected: 'building.2.fill' }}
+          sf={{ default: 'fuelpump', selected: 'fuelpump.fill' }}
           selectedColor={WyreColors.purple}
         />
-        <Label>Branches</Label>
+        <Label>Diesel</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="alerts">
         <Icon

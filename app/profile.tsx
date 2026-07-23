@@ -1,87 +1,69 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { AppHeader } from '@/components/wyre/app-header';
+import { AccountScreen } from '@/components/wyre/account-screen';
+import { DetailField, DetailSection, ScreenCard } from '@/components/wyre/screen-card';
 import { WyreColors } from '@/constants/theme';
-import { getUserDisplayName, getUserInitials, getUserRoleLabel } from '@/lib/user-display';
+import {
+  getAccountFields,
+  getOrganisationFields,
+  getOrganisationName,
+  getUserDisplayName,
+  getUserInitials,
+} from '@/lib/user-display';
 import { useAppSelector } from '@/redux/hooks';
 
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
   const userData = useAppSelector((state) => state.auth.userData);
 
   const displayName = getUserDisplayName(userData);
   const initials = getUserInitials(userData);
-  const roleLabel = getUserRoleLabel(userData);
-  const email = typeof userData?.email === 'string' ? userData.email : null;
+  const organisation = getOrganisationName(userData);
+  const accountFields = getAccountFields(userData);
+  const organisationFields = getOrganisationFields(userData);
 
   return (
-    <View style={styles.root}>
-      <AppHeader
-        rightAction={
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Go back">
-            <MaterialIcons name="close" size={22} color={WyreColors.textPrimary} />
-          </Pressable>
-        }
-      />
-
-      <View style={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        <Text style={styles.title}>Profile</Text>
-
-        <View style={styles.profileCard}>
-          <View style={styles.avatarLarge}>
+    <AccountScreen title="Personal Data">
+      <ScreenCard>
+        <View style={styles.identity}>
+          <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initials}</Text>
           </View>
           <Text style={styles.name}>{displayName}</Text>
-          {email ? <Text style={styles.email}>{email}</Text> : null}
-          {roleLabel ? <Text style={styles.role}>{roleLabel}</Text> : null}
+          {organisation ? <Text style={styles.subtitle}>{organisation}</Text> : null}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account details</Text>
-          <Text style={styles.sectionBody}>
-            Your Wyre solar dashboard account information. More profile options will be added here.
+        {accountFields.length > 0 ? (
+          <DetailSection title="Account">
+            {accountFields.map((field) => (
+              <DetailField key={field.label} label={field.label} value={field.value} />
+            ))}
+          </DetailSection>
+        ) : null}
+
+        {organisationFields.length > 0 ? (
+          <DetailSection title="Organisation">
+            {organisationFields.map((field) => (
+              <DetailField key={field.label} label={field.label} value={field.value} />
+            ))}
+          </DetailSection>
+        ) : null}
+
+        {accountFields.length === 0 && organisationFields.length === 0 ? (
+          <Text style={styles.empty}>
+            No profile details are available on this account yet.
           </Text>
-        </View>
-      </View>
-    </View>
+        ) : null}
+      </ScreenCard>
+    </AccountScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: WyreColors.pageBg,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: WyreColors.textPrimary,
-    marginBottom: 24,
-  },
-  profileCard: {
+  identity: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingVertical: 28,
-    paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: WyreColors.border,
-    marginBottom: 24,
+    paddingBottom: 20,
   },
-  avatarLarge: {
+  avatar: {
     width: 72,
     height: 72,
     borderRadius: 36,
@@ -97,46 +79,21 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   name: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: WyreColors.textPrimary,
     textAlign: 'center',
   },
-  email: {
+  subtitle: {
     marginTop: 6,
-    fontSize: 14,
+    fontSize: 15,
     color: WyreColors.textSecondary,
     textAlign: 'center',
   },
-  role: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: '600',
-    color: WyreColors.purple,
-    textAlign: 'center',
-  },
-  section: {
-    gap: 6,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: WyreColors.textPrimary,
-  },
-  sectionBody: {
+  empty: {
     fontSize: 14,
     lineHeight: 20,
     color: WyreColors.textSecondary,
-  },
-  closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: WyreColors.pageBg,
-  },
-  pressed: {
-    opacity: 0.7,
+    textAlign: 'center',
   },
 });

@@ -1,6 +1,6 @@
 import { jwtDecode } from 'jwt-decode';
 
-import { APIServiceNoAuth } from '@/config/api/apiServices';
+import { APIService, APIServiceNoAuth } from '@/config/api/apiServices';
 import {
   clearAuthStorage,
   getStoredTokens,
@@ -31,11 +31,24 @@ export type AuthActionResult = {
 };
 
 type DecodedUser = Record<string, unknown> & {
+  id?: number | string;
+  user_id?: number | string;
   branch_id?: number;
+  branch_name?: string;
+  branch?: string;
   username?: string;
   email?: string;
+  client?: string;
+  organisation?: string;
+  client_type?: string;
   is_solar_customer?: boolean;
   role_text?: string;
+};
+
+export type ChangePasswordPayload = {
+  username: string;
+  password: string;
+  new_password: string;
 };
 
 /**
@@ -93,6 +106,28 @@ export const bootstrapAuth = () => async (dispatch: AppDispatch) => {
 
   dispatch(hydrateAuth({ userData: null, isAuthenticated: false }));
   return false;
+};
+
+/**
+ * Change password while logged in — mirrors wyre-dashboard
+ * POST /api/v1/reset_password/
+ * Body: { username, password, new_password }
+ */
+export const changePasswordAction = async (
+  payload: ChangePasswordPayload,
+): Promise<AuthActionResult> => {
+  try {
+    const response = await APIService.post('reset_password/', payload);
+    return {
+      fulfilled: true,
+      message: response.data?.message || 'Your password has been successfully updated.',
+    };
+  } catch (error: unknown) {
+    return {
+      fulfilled: false,
+      message: extractErrorMessage(error, 'Password change failed'),
+    };
+  }
 };
 
 /**

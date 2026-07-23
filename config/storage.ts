@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const STORAGE_KEYS = {
   token: 'loggedWyreUser',
   currentUser: 'currentUser',
+  notificationsEnabled: 'wyreNotificationsEnabled',
 } as const;
 
 export type AuthTokenPair = {
@@ -41,4 +42,13 @@ export async function setStoredUser(user: unknown): Promise<void> {
 
 export async function clearAuthStorage(): Promise<void> {
   await AsyncStorage.multiRemove([STORAGE_KEYS.token, STORAGE_KEYS.currentUser]);
+}
+
+export async function getNotificationsEnabled(): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.notificationsEnabled);
+  return raw === 'true';
+}
+
+export async function setNotificationsEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.notificationsEnabled, enabled ? 'true' : 'false');
 }

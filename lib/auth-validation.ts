@@ -15,6 +15,28 @@ export function validatePassword(value: string): string | undefined {
   return undefined;
 }
 
+/** Strong password rules — aligned with wyre-dashboard Password page. */
+const STRONG_PASSWORD_REGEX =
+  /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/;
+
+export const STRONG_PASSWORD_HINT =
+  'Passwords must include a number, a special character, a lowercase and uppercase letter. They should also be a minimum of 8 characters.';
+
+export function validateStrongPassword(value: string): string | undefined {
+  if (!value) return 'Please enter a new password.';
+  if (!STRONG_PASSWORD_REGEX.test(value)) {
+    return 'Please enter a valid password.';
+  }
+  if (value.length > 60) return 'Password cannot be more than 60 characters.';
+  return undefined;
+}
+
+export function validatePasswordConfirm(value: string, newPassword: string): string | undefined {
+  if (!value) return 'Please re-enter your new password.';
+  if (value !== newPassword) return 'Passwords do not match.';
+  return undefined;
+}
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function validateEmail(value: string): string | undefined {
