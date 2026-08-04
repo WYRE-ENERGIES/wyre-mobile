@@ -1,10 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
-import { ReactNode } from 'react';
+import { ReactElement, ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControlProps,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,14 +14,16 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/wyre/app-header';
+import { SCREEN_PADDING_H, SCREEN_PADDING_TOP } from '@/constants/layout';
 import { WyreColors } from '@/constants/theme';
 
 type AccountScreenProps = {
   title: string;
   children: ReactNode;
+  refreshControl?: ReactElement<RefreshControlProps>;
 };
 
-export function AccountScreen({ title, children }: AccountScreenProps) {
+export function AccountScreen({ title, children, refreshControl }: AccountScreenProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -48,7 +51,8 @@ export function AccountScreen({ title, children }: AccountScreenProps) {
             { paddingBottom: insets.bottom + 28 },
           ]}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}>
           <Text style={styles.title}>{title}</Text>
           {children}
         </ScrollView>
@@ -66,8 +70,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: SCREEN_PADDING_H,
+    paddingTop: SCREEN_PADDING_TOP,
     gap: 16,
   },
   title: {

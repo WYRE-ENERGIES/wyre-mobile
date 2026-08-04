@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SCREEN_PADDING_H } from '@/constants/layout';
 import { WyreColors } from '@/constants/theme';
 import { getUserDisplayName, getUserInitials, getUserRoleLabel } from '@/lib/user-display';
 import { useAppSelector } from '@/redux/hooks';
@@ -17,11 +18,18 @@ type MenuItem = {
   key: string;
   label: string;
   icon: keyof typeof MaterialIcons.glyphMap;
-  href: '/profile' | '/settings';
+  href: '/profile' | '/scorecard' | '/cost-tracker' | '/settings';
 };
 
-const MENU_ITEMS: MenuItem[] = [
+/** Primary destinations — new pages go here, above Settings. */
+const PRIMARY_MENU_ITEMS: MenuItem[] = [
   { key: 'profile', label: 'View profile', icon: 'person-outline', href: '/profile' },
+  { key: 'scorecard', label: 'Scorecard', icon: 'insights', href: '/scorecard' },
+  { key: 'cost-tracker', label: 'Cost Tracker', icon: 'payments', href: '/cost-tracker' },
+];
+
+/** Pinned to the bottom of the side menu. */
+const FOOTER_MENU_ITEMS: MenuItem[] = [
   { key: 'settings', label: 'Settings', icon: 'settings', href: '/settings' },
 ];
 
@@ -73,9 +81,23 @@ export function ProfileSideMenu({ visible, onClose }: ProfileSideMenuProps) {
 
   const onNavigate = (href: MenuItem['href']) => {
     onClose();
-    // Let the close animation start before navigating.
     setTimeout(() => router.push(href), 120);
   };
+
+  const renderMenuItem = (item: MenuItem) => (
+    <Pressable
+      key={item.key}
+      onPress={() => onNavigate(item.href)}
+      style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={item.label}>
+      <View style={styles.menuIconWrap}>
+        <MaterialIcons name={item.icon} size={22} color={WyreColors.purple} />
+      </View>
+      <Text style={styles.menuLabel}>{item.label}</Text>
+      <MaterialIcons name="chevron-right" size={22} color={WyreColors.textSecondary} />
+    </Pressable>
+  );
 
   return (
     <Modal
@@ -136,22 +158,11 @@ export function ProfileSideMenu({ visible, onClose }: ProfileSideMenuProps) {
             </View>
           </View>
 
-          <View style={styles.menuList}>
-            {MENU_ITEMS.map((item) => (
-              <Pressable
-                key={item.key}
-                onPress={() => onNavigate(item.href)}
-                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                accessibilityRole="button"
-                accessibilityLabel={item.label}>
-                <View style={styles.menuIconWrap}>
-                  <MaterialIcons name={item.icon} size={22} color={WyreColors.purple} />
-                </View>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-                <MaterialIcons name="chevron-right" size={22} color={WyreColors.textSecondary} />
-              </Pressable>
-            ))}
-          </View>
+          <View style={styles.menuList}>{PRIMARY_MENU_ITEMS.map(renderMenuItem)}</View>
+
+          <View style={styles.menuSpacer} />
+
+          <View style={styles.footerList}>{FOOTER_MENU_ITEMS.map(renderMenuItem)}</View>
         </Animated.View>
       </View>
     </Modal>
@@ -171,7 +182,7 @@ const styles = StyleSheet.create({
   panel: {
     height: '100%',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
+    paddingHorizontal: SCREEN_PADDING_H,
     shadowColor: '#000',
     shadowOffset: { width: -4, height: 0 },
     shadowOpacity: 0.12,
@@ -241,6 +252,15 @@ const styles = StyleSheet.create({
   },
   menuList: {
     gap: 4,
+  },
+  menuSpacer: {
+    flex: 1,
+  },
+  footerList: {
+    gap: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: WyreColors.border,
+    paddingTop: 12,
   },
   menuItem: {
     flexDirection: 'row',

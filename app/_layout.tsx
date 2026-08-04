@@ -87,6 +87,34 @@ function RootNavigator() {
             }}
           />
           <Stack.Screen
+            name="scorecard"
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="cost-tracker"
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="add-bills"
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="add-diesel-entry"
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
             name="settings"
             options={{
               presentation: 'card',

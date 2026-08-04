@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AUTH_LOGO } from '@/constants/auth-logo';
+import { SCREEN_PADDING_H } from '@/constants/layout';
 import { WyreColors } from '@/constants/theme';
 
 type AppHeaderProps = {
@@ -24,7 +25,7 @@ export function AppHeader({ rightAction }: AppHeaderProps) {
 const styles = StyleSheet.create({
   header: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
+    paddingHorizontal: SCREEN_PADDING_H,
     paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: WyreColors.border,
