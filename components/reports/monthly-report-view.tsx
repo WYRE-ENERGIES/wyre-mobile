@@ -111,7 +111,7 @@ export function MonthlyReportView({ report }: MonthlyReportViewProps) {
 
       <ReportSectionCard
         title="Utility consumption"
-        icon="electrical-services"
+        icon="powerplug.fill"
         info="The chart compares your utility consumption with the service provider to ensure that you are not overcharged.">
         {report.utilityRows.length === 0 ? (
           <Text style={styles.empty}>No utility rows for this period.</Text>
@@ -136,7 +136,7 @@ export function MonthlyReportView({ report }: MonthlyReportViewProps) {
 
       <ReportSectionCard
         title="Diesel consumption"
-        icon="local-gas-station"
+        icon="fuelpump.fill"
         info="The chart outlines monthly diesel usage and costs. You can optimize through reduced loads, limited use during off-hours, and regular maintenance.">
         {report.dieselRows.length === 0 ? (
           <Text style={styles.empty}>No diesel rows for this period.</Text>
@@ -163,7 +163,7 @@ export function MonthlyReportView({ report }: MonthlyReportViewProps) {
 
       <ReportSectionCard
         title="Solar Hours consumption"
-        icon="wb-sunny"
+        icon="sun.max.fill"
         info="This card shows the energy consumed during sunshine hours. The value is the potential savings if you deploy the solar solution.">
         <ReportKvGrid
           items={[
@@ -206,7 +206,7 @@ export function MonthlyReportView({ report }: MonthlyReportViewProps) {
 
       <ReportSectionCard
         title="Energy Usage Breakdown"
-        icon="pie-chart"
+        icon="chart.pie.fill"
         info="The information in the card helps you plan for an alternative source of energy especially during weekends to cut cost.">
         <ReportTable
           headers={['Period', 'Energy (kWh)', '%']}
@@ -220,7 +220,7 @@ export function MonthlyReportView({ report }: MonthlyReportViewProps) {
 
       <ReportSectionCard
         title="Deviation Energy and Cost"
-        icon="trending-down"
+        icon="chart.line.downtrend.xyaxis"
         info="The chart captures the time, energy and cost wasted by running the generator outside operating hours.">
         <ReportTable
           headers={['Month', 'Energy', 'Hours', 'Diesel', 'Cost']}
@@ -263,7 +263,7 @@ export function MonthlyReportView({ report }: MonthlyReportViewProps) {
 
       <ReportSectionCard
         title="Fuel Efficiency Accuracy Comparison"
-        icon="speed"
+        icon="gauge.with.dots.needle.33percent"
         right={<Text style={styles.badge}>Accuracy: {report.fuelAccuracy}</Text>}>
         <ReportKvGrid
           items={[
@@ -275,7 +275,7 @@ export function MonthlyReportView({ report }: MonthlyReportViewProps) {
 
       <ReportSectionCard
         title="Band Categorization"
-        icon="electrical-services"
+        icon="powerplug.fill"
         right={<Text style={styles.badge}>Band {report.bandLabel}</Text>}>
         <ReportTable
           headers={['Band', 'Total hours', 'Expected']}
@@ -287,7 +287,7 @@ export function MonthlyReportView({ report }: MonthlyReportViewProps) {
         />
       </ReportSectionCard>
 
-      <ReportSectionCard title="Data Entry Score" icon="assignment-turned-in">
+      <ReportSectionCard title="Data Entry Score" icon="checkmark.square.fill">
         <View style={styles.dataEntry}>
           <Text style={styles.dataEntryScore}>
             {report.dataEntryScore}
@@ -308,8 +308,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
     gap: 14,
-    borderWidth: 1,
-    borderColor: '#E6EAF0',
   },
   heading: {
     alignItems: 'center',

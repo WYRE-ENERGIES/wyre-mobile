@@ -1,5 +1,5 @@
-import { TabScreenLayout } from '@/components/wyre/tab-screen-layout';
+import { DieselOverviewContent } from '@/components/diesel/diesel-overview-content';
 
 export default function BranchesScreen() {
-  return <TabScreenLayout title="Diesel Overview" />;
+  return <DieselOverviewContent />;
 }

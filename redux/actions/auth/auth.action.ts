@@ -8,6 +8,7 @@ import {
   setStoredTokens,
   setStoredUser,
 } from '@/config/storage';
+import { registerCurrentDeviceForPush, unregisterPushOnLogout } from '@/lib/push-notifications';
 import {
   confirmResetPasswordLoading,
   confirmResetPasswordSuccess,
@@ -76,6 +77,9 @@ export const loginAUser =
 
       dispatch(loginUserSuccess(decodedToken));
       dispatch(loginUserLoading(false));
+
+      registerCurrentDeviceForPush({ force: false }).catch(() => undefined);
+
       return { fulfilled: true, message: 'successful' };
     } catch (error: unknown) {
       dispatch(loginUserLoading(false));
@@ -85,6 +89,11 @@ export const loginAUser =
   };
 
 export const logUserOut = () => async (dispatch: AppDispatch) => {
+  try {
+    await unregisterPushOnLogout();
+  } catch {
+    // Best-effort — still clear session
+  }
   await clearAuthStorage();
   dispatch(logoutUser());
   dispatch(loginUserSuccess(null));

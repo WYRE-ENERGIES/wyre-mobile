@@ -9,16 +9,21 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/branding/wyre-logo-full.png",
+      "image": "./assets/branding/wyre-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#F4F2F8"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.wyre.app"
+      "bundleIdentifier": "com.wyreng.ems",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
-      "package": "com.wyre.app",
+      "package": "com.wyreng.ems",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#5C12A7",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -37,12 +42,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/branding/wyre-logo-full.png",
+          "image": "./assets/branding/wyre-logo.png",
           "imageWidth": 168,
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF",
+          "backgroundColor": "#F4F2F8",
           "dark": {
-            "backgroundColor": "#FFFFFF"
+            "image": "./assets/branding/wyre-logo-white.png",
+            "backgroundColor": "#05010A"
           }
         }
       ],
@@ -50,10 +56,31 @@
         "expo-notifications",
         {
           "icon": "./assets/images/notification-icon.png",
-          "color": "#5C12A7"
+          "color": "#5C12A7",
+          "enableBackgroundRemoteNotifications": true
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "disableSPM": true
+          }
+        }
+      ],
+      "@react-native-firebase/messaging",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "buildReactNativeFromSource": true,
+            "forceStaticLinking": ["RNFBApp", "RNFBMessaging"]
+          }
+        }
+      ],
+      "./plugins/with-fmt-consteval-fix"
     ],
     "experiments": {
       "typedRoutes": true,

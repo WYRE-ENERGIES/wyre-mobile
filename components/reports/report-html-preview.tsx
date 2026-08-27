@@ -1,7 +1,7 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-import { WyreColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme-context';
 
 type ReportHtmlPreviewProps = {
   html: string;
@@ -14,30 +14,31 @@ export function ReportHtmlPreview({
   loading = false,
   emptyMessage = 'Select report parameters to load a preview.',
 }: ReportHtmlPreviewProps) {
+  const { colors } = useAppTheme();
   if (loading) {
     return (
-      <View style={styles.state}>
-        <ActivityIndicator color={WyreColors.purple} />
-        <Text style={styles.stateText}>Loading preview…</Text>
+      <View style={[styles.state, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <ActivityIndicator color={colors.accent} />
+        <Text style={[styles.stateText, { color: colors.textOnCardSecondary }]}>Loading preview…</Text>
       </View>
     );
   }
 
   if (!html) {
     return (
-      <View style={styles.state}>
-        <Text style={styles.stateTitle}>No preview yet</Text>
-        <Text style={styles.stateText}>{emptyMessage}</Text>
+      <View style={[styles.state, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.stateTitle, { color: colors.textOnCard }]}>No preview yet</Text>
+        <Text style={[styles.stateText, { color: colors.textOnCardSecondary }]}>{emptyMessage}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.frame}>
+    <View style={[styles.frame, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <WebView
         originWhitelist={['*']}
         source={{ html }}
-        style={styles.webview}
+        style={[styles.webview, { backgroundColor: colors.surface }]}
         startInLoadingState
         scalesPageToFit
         setSupportMultipleWindows={false}
@@ -51,20 +52,13 @@ const styles = StyleSheet.create({
     height: 480,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: WyreColors.border,
   },
   webview: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   state: {
     minHeight: 220,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: WyreColors.border,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
@@ -73,12 +67,10 @@ const styles = StyleSheet.create({
   stateTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: WyreColors.textPrimary,
   },
   stateText: {
     fontSize: 14,
     lineHeight: 20,
-    color: WyreColors.textSecondary,
     textAlign: 'center',
   },
 });

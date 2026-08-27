@@ -1,24 +1,31 @@
 /**
  * Global Axios instances — mirrors admin_frontend_v2/src/config/Api/apiServices.js
  */
-import axios, { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import {
+  AxiosError,
+  AxiosRequestConfig,
+  AxiosResponse,
+  create,
+  InternalAxiosRequestConfig,
+} from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 import EnvData from '@/config/EnvData';
 import { clearAuthStorage, getStoredTokens } from '@/config/storage';
 
-export const instance = axios.create({
+export const instance = create({
   baseURL: EnvData.REACT_APP_API_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 200000,
 });
 
-export const instanceMultipart = axios.create({
+export const instanceMultipart = create({
   baseURL: EnvData.REACT_APP_API_URL,
   headers: { 'Content-Type': 'multipart/form-data' },
   timeout: 200000,
 });
 
-export const instanceNoAuth = axios.create({
+export const instanceNoAuth = create({
   baseURL: EnvData.REACT_APP_API_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 200000,
@@ -42,10 +49,37 @@ const useConfig = async (config: InternalAxiosRequestConfig) => {
 
 const responseOk = (response: AxiosResponse) => response;
 
+function isExpiredOrInvalidAccessToken(access: string): boolean {
+  try {
+    const payload = jwtDecode<{ exp?: number }>(access);
+    if (typeof payload.exp !== 'number') return false;
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
+function responseDeclaresInvalidToken(error: AxiosError): boolean {
+  const data = error.response?.data;
+  if (!data || typeof data !== 'object') return false;
+  const code = (data as { code?: unknown }).code;
+  return code === 'token_not_valid' || code === 'invalid_token';
+}
+
 const responseError = async (error: AxiosError) => {
   if (error.response?.status === 401) {
-    await clearAuthStorage();
-    onUnauthorized?.();
+    const tokens = await getStoredTokens();
+    const sessionIsInvalid =
+      !tokens?.access ||
+      isExpiredOrInvalidAccessToken(tokens.access) ||
+      responseDeclaresInvalidToken(error);
+
+    // Some customer-scoped endpoints return 401 when that feature is not
+    // available. A valid session must not be destroyed by those responses.
+    if (sessionIsInvalid) {
+      await clearAuthStorage();
+      onUnauthorized?.();
+    }
   }
   return Promise.reject(error);
 };

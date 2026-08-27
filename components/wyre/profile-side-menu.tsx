@@ -1,10 +1,11 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { WyreColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme-context';
 import { getUserDisplayName, getUserInitials, getUserRoleLabel } from '@/lib/user-display';
 import { useAppSelector } from '@/redux/hooks';
 
@@ -16,19 +17,20 @@ type ProfileSideMenuProps = {
 type MenuItem = {
   key: string;
   label: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-  href: '/profile' | '/settings';
+  icon: 'person' | 'gearshape';
+  href: '/(tabs)/profile' | '/settings';
 };
 
 const MENU_ITEMS: MenuItem[] = [
-  { key: 'profile', label: 'View profile', icon: 'person-outline', href: '/profile' },
-  { key: 'settings', label: 'Settings', icon: 'settings', href: '/settings' },
+  { key: 'profile', label: 'View profile', icon: 'person', href: '/(tabs)/profile' },
+  { key: 'settings', label: 'Settings', icon: 'gearshape', href: '/settings' },
 ];
 
 const PANEL_WIDTH = 320;
 
 export function ProfileSideMenu({ visible, onClose }: ProfileSideMenuProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
   const userData = useAppSelector((state) => state.auth.userData);
   const slideX = useRef(new Animated.Value(PANEL_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -85,7 +87,7 @@ export function ProfileSideMenu({ visible, onClose }: ProfileSideMenuProps) {
       onRequestClose={onClose}
       statusBarTranslucent>
       <View style={styles.overlay}>
-        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity, backgroundColor: colors.overlay }]}>
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={onClose}
@@ -101,35 +103,40 @@ export function ProfileSideMenu({ visible, onClose }: ProfileSideMenuProps) {
               paddingTop: insets.top + 16,
               paddingBottom: insets.bottom + 20,
               transform: [{ translateX: slideX }],
+              backgroundColor: colors.surface,
             },
           ]}>
           <View style={styles.panelHeader}>
-            <Text style={styles.panelTitle}>Account</Text>
+            <Text style={[styles.panelTitle, { color: colors.textOnCard }]}>Account</Text>
             <Pressable
               onPress={onClose}
-              style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.closeBtn,
+                { backgroundColor: colors.surfaceMuted },
+                pressed && styles.pressed,
+              ]}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Close side menu">
-              <MaterialIcons name="close" size={22} color={WyreColors.textPrimary} />
+              <IconSymbol name="xmark" size={22} color={colors.textOnCard} />
             </Pressable>
           </View>
 
-          <View style={styles.userBlock}>
+          <View style={[styles.userBlock, { borderBottomColor: colors.border }]}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{initials}</Text>
             </View>
             <View style={styles.userMeta}>
-              <Text style={styles.userName} numberOfLines={1}>
+              <Text style={[styles.userName, { color: colors.textOnCard }]} numberOfLines={1}>
                 {displayName}
               </Text>
               {email ? (
-                <Text style={styles.userEmail} numberOfLines={1}>
+                <Text style={[styles.userEmail, { color: colors.textOnCardSecondary }]} numberOfLines={1}>
                   {email}
                 </Text>
               ) : null}
               {roleLabel ? (
-                <Text style={styles.userRole} numberOfLines={1}>
+                <Text style={[styles.userRole, { color: colors.accent }]} numberOfLines={1}>
                   {roleLabel}
                 </Text>
               ) : null}
@@ -141,14 +148,17 @@ export function ProfileSideMenu({ visible, onClose }: ProfileSideMenuProps) {
               <Pressable
                 key={item.key}
                 onPress={() => onNavigate(item.href)}
-                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                style={({ pressed }) => [
+                  styles.menuItem,
+                  pressed && { backgroundColor: colors.surfaceMuted },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel={item.label}>
-                <View style={styles.menuIconWrap}>
-                  <MaterialIcons name={item.icon} size={22} color={WyreColors.purple} />
+                <View style={[styles.menuIconWrap, { backgroundColor: colors.accentMuted }]}>
+                  <IconSymbol name={item.icon} size={22} color={colors.accent} />
                 </View>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-                <MaterialIcons name="chevron-right" size={22} color={WyreColors.textSecondary} />
+                <Text style={[styles.menuLabel, { color: colors.textOnCard }]}>{item.label}</Text>
+                <IconSymbol name="chevron.right" size={22} color={colors.textOnCardSecondary} />
               </Pressable>
             ))}
           </View>
@@ -166,11 +176,9 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(17, 24, 39, 0.4)',
   },
   panel: {
     height: '100%',
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: { width: -4, height: 0 },
@@ -187,7 +195,6 @@ const styles = StyleSheet.create({
   panelTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: WyreColors.textPrimary,
   },
   closeBtn: {
     width: 36,
@@ -195,7 +202,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: WyreColors.pageBg,
   },
   userBlock: {
     flexDirection: 'row',
@@ -204,7 +210,6 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     marginBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: WyreColors.border,
   },
   avatar: {
     width: 52,
@@ -227,17 +232,14 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '700',
-    color: WyreColors.textPrimary,
   },
   userEmail: {
     fontSize: 13,
-    color: WyreColors.textSecondary,
   },
   userRole: {
     marginTop: 2,
     fontSize: 12,
     fontWeight: '600',
-    color: WyreColors.purple,
   },
   menuList: {
     gap: 4,
@@ -250,22 +252,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 12,
   },
-  menuItemPressed: {
-    backgroundColor: WyreColors.pageBg,
-  },
   menuIconWrap: {
     width: 40,
     height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(92, 18, 167, 0.08)',
   },
   menuLabel: {
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    color: WyreColors.textPrimary,
   },
   pressed: {
     opacity: 0.7,

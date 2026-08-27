@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/wyre/app-header';
 import { UserAvatarButton } from '@/components/wyre/user-avatar-button';
-import { WyreColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme-context';
 
 type TabScreenLayoutProps = {
   title: string;
@@ -13,13 +13,14 @@ type TabScreenLayoutProps = {
 
 export function TabScreenLayout({ title, children }: TabScreenLayoutProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.pageBg }]}>
       <AppHeader rightAction={<UserAvatarButton />} />
 
       <View style={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, { color: colors.textOnPage }]}>{title}</Text>
         {children}
       </View>
     </View>
@@ -29,7 +30,6 @@ export function TabScreenLayout({ title, children }: TabScreenLayoutProps) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: WyreColors.pageBg,
   },
   content: {
     flex: 1,
@@ -39,6 +39,5 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: WyreColors.textPrimary,
   },
 });

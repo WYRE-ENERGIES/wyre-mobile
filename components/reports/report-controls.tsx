@@ -1,7 +1,9 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AuthButton } from '@/components/auth/auth-button';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { WyreColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme-context';
 import { validateEmail } from '@/lib/auth-validation';
 import { isReportReadyToSend } from '@/lib/report/helpers';
 import type { ReportContext } from '@/lib/report/types';
@@ -25,26 +27,34 @@ export function SendReportCard({
   message,
   error,
 }: SendReportCardProps) {
+  const { colors } = useAppTheme();
   const ready = isReportReadyToSend(reportContext);
   const emailError = recipient ? validateEmail(recipient) : undefined;
   const canSend = ready && !emailError && Boolean(recipient.trim()) && !loading;
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Send report</Text>
-      <Text style={styles.body}>Email this report to a teammate or stakeholder.</Text>
+    <View style={[styles.card, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.title, { color: colors.textOnCard }]}>Get the full report</Text>
+      <Text style={[styles.body, { color: colors.textOnCardSecondary }]}>
+        Receive the detailed charts, tables, and source breakdown by email.
+      </Text>
 
       {message ? (
-        <View style={styles.successBanner}>
-          <Text style={styles.successBannerText}>{message}</Text>
+        <View style={styles.statusBanner}>
+          <IconSymbol name="checkmark.circle.fill" size={20} color={colors.success} />
+          <Text style={[styles.statusText, { color: colors.textOnCard }]}>{message}</Text>
         </View>
       ) : null}
       {error ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>{error}</Text>
+        <View style={styles.statusBanner}>
+          <IconSymbol name="exclamationmark.circle.fill" size={20} color={colors.error} />
+          <Text style={[styles.statusText, { color: colors.textOnCard }]}>{error}</Text>
         </View>
       ) : null}
 
+      <Text style={[styles.inputLabel, { color: colors.textOnCardSecondary }]}>
+        Email address
+      </Text>
       <TextInput
         value={recipient}
         onChangeText={onChangeRecipient}
@@ -53,19 +63,31 @@ export function SendReportCard({
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
-        style={[styles.input, !!emailError && styles.inputError]}
+        style={[
+          styles.input,
+          {
+            color: colors.textOnCard,
+            backgroundColor: colors.surfaceMuted,
+            borderColor: colors.border,
+          },
+          !!emailError && styles.inputError,
+        ]}
       />
       {emailError ? <Text style={styles.error}>{emailError}</Text> : null}
 
       <AuthButton
-        title={loading ? 'Sending…' : 'Send report'}
+        title={loading ? 'Sending…' : 'Email full report'}
         onPress={onSend}
         disabled={!canSend}
         loading={loading}
+        accent={colors.accent}
+        style={styles.sendButton}
       />
 
       {!ready ? (
-        <Text style={styles.hint}>Select required parameters to enable sending.</Text>
+        <Text style={[styles.hint, { color: colors.textOnCardSecondary }]}>
+          Select required parameters to enable sending.
+        </Text>
       ) : null}
     </View>
   );
@@ -77,18 +99,29 @@ type ReportTypeTabsProps = {
 };
 
 export function ReportTypeTabs({ value, onChange }: ReportTypeTabsProps) {
-  const tabs: Array<'daily' | 'periodic' | 'monthly'> = ['daily', 'periodic', 'monthly'];
+  const tabs: ('daily' | 'periodic' | 'monthly')[] = ['daily', 'periodic', 'monthly'];
+  const { colors, isDark } = useAppTheme();
 
   return (
-    <View style={styles.tabs}>
+    <View style={[styles.tabs, { backgroundColor: colors.surface }]}>
       {tabs.map((tab) => {
         const selected = value === tab;
         return (
           <Pressable
             key={tab}
             onPress={() => onChange(tab)}
-            style={[styles.tab, selected && styles.tabSelected]}>
-            <Text style={[styles.tabLabel, selected && styles.tabLabelSelected]}>
+            style={[
+              styles.tab,
+              selected && {
+                backgroundColor: isDark ? colors.surfaceMuted : colors.accent,
+              },
+            ]}>
+            <Text
+              style={[
+                styles.tabLabel,
+                { color: colors.textOnCardSecondary },
+                selected && { color: isDark ? colors.accent : colors.textOnAccent },
+              ]}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </Text>
           </Pressable>
@@ -100,78 +133,65 @@ export function ReportTypeTabs({ value, onChange }: ReportTypeTabsProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     gap: 10,
-    borderWidth: 1,
-    borderColor: WyreColors.border,
   },
   title: {
     fontSize: 17,
     fontWeight: '700',
-    color: WyreColors.textPrimary,
   },
   body: {
     fontSize: 13,
     lineHeight: 18,
-    color: WyreColors.textSecondary,
     marginBottom: 4,
   },
   input: {
     minHeight: 48,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: 'rgba(92, 18, 167, 0.14)',
-    backgroundColor: '#F5F0FA',
     paddingHorizontal: 14,
     fontSize: 16,
-    color: WyreColors.textPrimary,
+  },
+  inputLabel: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  sendButton: {
+    minHeight: 52,
+    borderRadius: 14,
+    marginTop: 2,
   },
   inputError: {
     borderColor: WyreColors.error,
   },
   hint: {
     fontSize: 12,
-    color: WyreColors.textSecondary,
   },
   error: {
     fontSize: 13,
     color: WyreColors.error,
   },
-  successBanner: {
-    backgroundColor: 'rgba(34, 197, 94, 0.12)',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(34, 197, 94, 0.28)',
+  statusBanner: {
+    minHeight: 42,
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
   },
-  successBannerText: {
-    fontSize: 14,
+  statusText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '600',
-    color: '#15803D',
-  },
-  errorBanner: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.25)',
-  },
-  errorBannerText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: WyreColors.error,
   },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 4,
-    borderWidth: 1,
-    borderColor: WyreColors.border,
   },
   tab: {
     flex: 1,
@@ -179,15 +199,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 9,
   },
-  tabSelected: {
-    backgroundColor: WyreColors.purple,
-  },
   tabLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: WyreColors.textSecondary,
-  },
-  tabLabelSelected: {
-    color: '#FFFFFF',
   },
 });

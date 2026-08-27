@@ -1,28 +1,29 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { WyreColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme-context';
 import {
   formatAlertTime,
   type AlertCategory,
   type AlertSeverity,
-  type SolarAlert,
-} from '@/lib/dummy-alerts';
+  type WyreAlert,
+} from '@/lib/alerts';
 
 type AlertRowProps = {
-  alert: SolarAlert;
-  onPress: (alert: SolarAlert) => void;
+  alert: WyreAlert;
+  onPress: (alert: WyreAlert) => void;
   isLast?: boolean;
 };
 
-const CATEGORY_ICONS: Record<AlertCategory, keyof typeof MaterialIcons.glyphMap> = {
-  generation: 'bolt',
-  inverter: 'power-off',
-  battery: 'battery-alert',
-  weather: 'cloud-queue',
-  capacity: 'speed',
-  maintenance: 'build',
-};
+const CATEGORY_ICONS = {
+  generation: 'bolt.fill',
+  inverter: 'power',
+  battery: 'battery.25',
+  weather: 'cloud',
+  capacity: 'gauge.with.dots.needle.33percent',
+  maintenance: 'wrench.and.screwdriver.fill',
+} as const satisfies Record<AlertCategory, string>;
 
 const SEVERITY_COLOR: Record<AlertSeverity, string> = {
   critical: WyreColors.error,
@@ -33,40 +34,51 @@ const SEVERITY_COLOR: Record<AlertSeverity, string> = {
 
 export function AlertRow({ alert, onPress, isLast = false }: AlertRowProps) {
   const iconColor = SEVERITY_COLOR[alert.severity];
+  const { colors } = useAppTheme();
 
   return (
     <Pressable
       onPress={() => onPress(alert)}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.row,
+        { backgroundColor: colors.surface },
+        pressed && { backgroundColor: colors.surfaceMuted },
+      ]}
       accessibilityRole="button"
       accessibilityLabel={`${alert.title}. ${alert.body}`}>
       <View style={styles.iconWrap}>
-        <MaterialIcons
+        <IconSymbol
           name={CATEGORY_ICONS[alert.category]}
           size={22}
           color={iconColor}
         />
       </View>
 
-      <View style={[styles.content, !isLast && styles.contentBorder]}>
+      <View style={[styles.content, !isLast && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
         <View style={styles.topRow}>
           <Text
-            style={[styles.title, !alert.read && styles.titleUnread]}
+            style={[styles.title, { color: colors.textOnCard }, !alert.read && styles.titleUnread]}
             numberOfLines={1}>
             {alert.title}
           </Text>
-          <Text style={styles.time}>{formatAlertTime(alert.createdAt)}</Text>
-          {!alert.read ? <View style={styles.unreadDot} /> : <View style={styles.unreadSpacer} />}
+          <Text style={[styles.time, { color: colors.textOnCardSecondary }]}>
+            {formatAlertTime(alert.createdAt)}
+          </Text>
+          {!alert.read ? (
+            <View style={[styles.unreadDot, { backgroundColor: colors.accent }]} />
+          ) : (
+            <View style={styles.unreadSpacer} />
+          )}
         </View>
 
-        <Text style={styles.subtitle} numberOfLines={2}>
+        <Text style={[styles.subtitle, { color: colors.textOnCardSecondary }]} numberOfLines={2}>
           {alert.branchName}
           {'  ·  '}
           {alert.body}
         </Text>
 
         {alert.severity === 'critical' ? (
-          <Text style={styles.critical}>Needs attention</Text>
+          <Text style={[styles.critical, { color: colors.error }]}>Needs attention</Text>
         ) : null}
       </View>
     </Pressable>
@@ -77,10 +89,6 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    backgroundColor: '#FFFFFF',
-  },
-  pressed: {
-    backgroundColor: '#F7F7FA',
   },
   iconWrap: {
     width: 52,
@@ -95,10 +103,6 @@ const styles = StyleSheet.create({
     paddingRight: 14,
     gap: 4,
   },
-  contentBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8EE',
-  },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -108,20 +112,17 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
-    color: WyreColors.textPrimary,
   },
   titleUnread: {
     fontWeight: '700',
   },
   time: {
     fontSize: 13,
-    color: WyreColors.textSecondary,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: WyreColors.purple,
   },
   unreadSpacer: {
     width: 8,
@@ -130,13 +131,11 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     lineHeight: 19,
-    color: WyreColors.textSecondary,
     paddingRight: 16,
   },
   critical: {
     marginTop: 2,
     fontSize: 12,
     fontWeight: '600',
-    color: WyreColors.error,
   },
 });
