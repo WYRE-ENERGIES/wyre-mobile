@@ -41,6 +41,7 @@ export type DieselOverviewRow = {
   diesel_difference: number;
   cost_difference: number;
   percentage_usage: number;
+  percentage_cost: number;
 };
 
 export type UtilityOverviewRow = {
@@ -65,6 +66,25 @@ export type CostTrackerBaseline = {
   baseline?: Record<string, BaselinePoint[]>;
 };
 
+export type CostTrackerPagination = {
+  current_page: number;
+  total_pages: number;
+  total_count: number;
+  page_size: number;
+  has_next: boolean;
+  has_previous: boolean;
+};
+
+export type DieselOverviewResponse = {
+  diesel_overview: DieselOverviewRow[];
+  pagination: CostTrackerPagination;
+};
+
+export type UtilityOverviewResponse = {
+  utility_overview: UtilityOverviewRow[];
+  pagination: CostTrackerPagination;
+};
+
 export type DieselDailyEntry = {
   fuel_consumption_id: number;
   date: string;
@@ -77,6 +97,8 @@ export type DieselDailyEntry = {
 export type CostTrackerDashboard = {
   overview: CostTrackerBranchOverview;
   dieselOverview: DieselOverviewRow[];
+  dieselPagination: CostTrackerPagination;
   utilityOverview: UtilityOverviewRow[];
+  utilityPagination: CostTrackerPagination;
   baseline: CostTrackerBaseline;
 };

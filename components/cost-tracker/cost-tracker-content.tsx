@@ -202,7 +202,17 @@ export function CostTrackerContent() {
   const branchId = getBranchId(userData);
   const userId = getUserId(userData);
   const isOperator = getUserRoleLabel(userData) === 'OPERATOR';
-  const { data, loading, refreshing, error, refresh } = useCostTracker(branchId);
+  const {
+    data,
+    loading,
+    refreshing,
+    dieselLoading,
+    utilityLoading,
+    error,
+    refresh,
+    setDieselPage,
+    setUtilityPage,
+  } = useCostTracker(branchId);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   const branchName = data?.overview.branch_name ?? 'your site';
@@ -285,9 +295,24 @@ export function CostTrackerContent() {
             columns={dieselOverviewColumns}
             rows={data?.dieselOverview ?? []}
             rowKey={(row) => row.month}
-            footer={`${data?.dieselOverview.length ?? 0} months`}
+            footer={`${data?.dieselPagination.total_count ?? 0} months`}
             pressableColumnKey="month"
             onRowPress={(row) => setSelectedMonth(row.month)}
+            pagination={
+              data
+                ? {
+                    currentPage: data.dieselPagination.current_page,
+                    totalPages: data.dieselPagination.total_pages,
+                    hasNext: data.dieselPagination.has_next,
+                    hasPrevious: data.dieselPagination.has_previous,
+                    loading: dieselLoading,
+                    onNext: () =>
+                      void setDieselPage(data.dieselPagination.current_page + 1),
+                    onPrevious: () =>
+                      void setDieselPage(data.dieselPagination.current_page - 1),
+                  }
+                : undefined
+            }
           />
 
           <Text
@@ -302,7 +327,22 @@ export function CostTrackerContent() {
             columns={utilityOverviewColumns}
             rows={data?.utilityOverview ?? []}
             rowKey={(row) => row.month}
-            footer={`${data?.utilityOverview.length ?? 0} months`}
+            footer={`${data?.utilityPagination.total_count ?? 0} months`}
+            pagination={
+              data
+                ? {
+                    currentPage: data.utilityPagination.current_page,
+                    totalPages: data.utilityPagination.total_pages,
+                    hasNext: data.utilityPagination.has_next,
+                    hasPrevious: data.utilityPagination.has_previous,
+                    loading: utilityLoading,
+                    onNext: () =>
+                      void setUtilityPage(data.utilityPagination.current_page + 1),
+                    onPrevious: () =>
+                      void setUtilityPage(data.utilityPagination.current_page - 1),
+                  }
+                : undefined
+            }
           />
         </SectionCard>
 

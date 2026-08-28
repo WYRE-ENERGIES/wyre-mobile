@@ -5,8 +5,8 @@ import type {
   CostTrackerBaseline,
   CostTrackerBranchOverview,
   DieselDailyEntry,
-  DieselOverviewRow,
-  UtilityOverviewRow,
+  DieselOverviewResponse,
+  UtilityOverviewResponse,
 } from '@/lib/cost-tracker-types';
 
 function unwrapData<T>(response: AxiosResponse): T {
@@ -21,14 +21,38 @@ export async function fetchCostTrackerOverview(branchId: number): Promise<CostTr
   return unwrapData<CostTrackerBranchOverview>(response);
 }
 
-export async function fetchDieselOverview(branchId: number): Promise<{ diesel_overview?: DieselOverviewRow[] }> {
-  const response = await APIService.get(`cost-tracker/diesel-overview/${branchId}/`);
-  return unwrapData<{ diesel_overview?: DieselOverviewRow[] }>(response);
+type OverviewPaginationParams = {
+  page?: number;
+  pageSize?: number;
+};
+
+function unwrapOverview<T extends object>(response: AxiosResponse): T {
+  const body = response.data;
+  const data = body?.data ?? body?.authenticatedData ?? body;
+  return {
+    ...data,
+    pagination: body?.pagination,
+  } as T;
 }
 
-export async function fetchUtilityOverview(branchId: number): Promise<{ utility_overview?: UtilityOverviewRow[] }> {
-  const response = await APIService.get(`cost-tracker/utility-overview/${branchId}/`);
-  return unwrapData<{ utility_overview?: UtilityOverviewRow[] }>(response);
+export async function fetchDieselOverview(
+  branchId: number,
+  { page = 1, pageSize = 12 }: OverviewPaginationParams = {},
+): Promise<DieselOverviewResponse> {
+  const response = await APIService.get(`cost-tracker/diesel-overview/${branchId}/`, {
+    params: { page, page_size: pageSize },
+  });
+  return unwrapOverview<DieselOverviewResponse>(response);
+}
+
+export async function fetchUtilityOverview(
+  branchId: number,
+  { page = 1, pageSize = 12 }: OverviewPaginationParams = {},
+): Promise<UtilityOverviewResponse> {
+  const response = await APIService.get(`cost-tracker/utility-overview/${branchId}/`, {
+    params: { page, page_size: pageSize },
+  });
+  return unwrapOverview<UtilityOverviewResponse>(response);
 }
 
 export async function fetchCostTrackerBaseline(branchId: number): Promise<CostTrackerBaseline> {
@@ -56,7 +80,9 @@ export async function fetchCostTrackerDashboard(branchId: number) {
   return {
     overview,
     dieselOverview: diesel.diesel_overview ?? [],
+    dieselPagination: diesel.pagination,
     utilityOverview: utility.utility_overview ?? [],
+    utilityPagination: utility.pagination,
     baseline,
   };
 }

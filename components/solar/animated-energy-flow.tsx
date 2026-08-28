@@ -151,7 +151,7 @@ export function AnimatedEnergyFlow({ data }: { data: SolarSiteStatus }) {
   const { colors } = useAppTheme();
   const diagramWidth = Math.min(width - 72, 360);
   const scale = diagramWidth / 360;
-  const inverter = { x: 180, y: 122 };
+  const inverter = { x: 180, y: 136 };
   const solar = { x: 180, y: 24 };
   const generatorOn = data.generator_power?.status === 'ON';
   const gridOn = data.grid?.status === 'ON';
@@ -161,7 +161,7 @@ export function AnimatedEnergyFlow({ data }: { data: SolarSiteStatus }) {
     {
       key: 'battery',
       x: outputXs[0],
-      y: 212,
+      y: 246,
       label: 'Battery',
       value: `${Math.round(data.battery?.percentage ?? 0)}% · ${formatKw(Math.abs(data.battery?.kw ?? 0))}`,
       detail:
@@ -177,7 +177,7 @@ export function AnimatedEnergyFlow({ data }: { data: SolarSiteStatus }) {
     {
       key: 'grid',
       x: outputXs[1],
-      y: generatorOn ? 224 : 212,
+      y: generatorOn ? 258 : 246,
       label: 'Grid',
       value: formatKw(Math.abs(data.grid?.kw ?? 0)),
       detail: gridOn ? 'Connected' : 'Offline',
@@ -193,7 +193,7 @@ export function AnimatedEnergyFlow({ data }: { data: SolarSiteStatus }) {
     {
       key: 'home',
       x: outputXs[2],
-      y: 212,
+      y: 246,
       label: 'Usage',
       value: formatKw(Math.abs(data.load?.kw ?? 0)),
       detail: (data.load?.kw ?? 0) > 0 ? 'Using power' : 'Idle',
@@ -207,7 +207,7 @@ export function AnimatedEnergyFlow({ data }: { data: SolarSiteStatus }) {
     nodes.push({
       key: 'generator',
       x: outputXs[3],
-      y: 224,
+      y: 258,
       label: 'Generator',
       value: formatKw(Math.abs(data.generator_power?.kw ?? 0)),
       detail: 'Supplying',
@@ -235,14 +235,14 @@ export function AnimatedEnergyFlow({ data }: { data: SolarSiteStatus }) {
   }));
 
   return (
-    <View style={[styles.diagram, { width: diagramWidth, height: 286 * scale }]}>
+    <View style={[styles.diagram, { width: diagramWidth, height: 320 * scale }]}>
       <Svg
         width={diagramWidth}
-        height={286 * scale}
-        viewBox="0 0 360 286"
+        height={320 * scale}
+        viewBox="0 0 360 320"
         preserveAspectRatio="xMidYMid meet">
         <FlowPath
-          path={`M ${solar.x} 73 Q ${solar.x} 87 ${inverter.x} 91`}
+          path={`M ${solar.x} 73 Q ${solar.x} 91 ${inverter.x} 105`}
           color="#F59E0B"
           direction={productionActive ? 'forward' : 'idle'}
         />
