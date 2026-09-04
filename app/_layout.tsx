@@ -7,8 +7,19 @@ import { useEffect, useState, type ReactNode } from 'react';
 import 'react-native-reanimated';
 
 import { setUnauthorizedHandler } from '@/config/api/apiServices';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { bootstrapAuth, logUserOut } from '@/redux/actions/auth/auth.action';
+import { AppThemeProvider, useAppTheme } from '@/context/theme-context';
+import {
+  attachExpoNotificationInboxListeners,
+  configureNotificationPresentation,
+} from '@/lib/notification-delivery';
+import { handleNotificationOpen } from '@/lib/notification-routing';
+import { getDefaultTabsHref } from '@/lib/auth-user';
+import {
+  attachPushListeners,
+  registerCurrentDeviceForPush,
+} from '@/lib/push-notifications';
+import { bootstrapAuth } from '@/redux/actions/auth/auth.action';
+import { logoutUser } from '@/redux/actions/auth/auth.creator';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { store } from '@/redux/store';
 
@@ -23,7 +34,7 @@ export const unstable_settings = {
 
 function AuthBootstrap({ children }: { children: ReactNode }) {
   const dispatch = useAppDispatch();
-  const { isAuthenticated, isHydrated } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, isHydrated, userData } = useAppSelector((state) => state.auth);
   const segments = useSegments();
   const [bootstrapped, setBootstrapped] = useState(false);
 
@@ -31,12 +42,40 @@ function AuthBootstrap({ children }: { children: ReactNode }) {
     dispatch(bootstrapAuth()).finally(() => setBootstrapped(true));
 
     setUnauthorizedHandler(() => {
-      dispatch(logUserOut());
+      dispatch(logoutUser());
       router.replace('/(auth)/login');
     });
 
     return () => setUnauthorizedHandler(null);
   }, [dispatch]);
+
+  useEffect(() => {
+    configureNotificationPresentation();
+  }, []);
+
+  useEffect(() => {
+    if (!bootstrapped || !isHydrated || !isAuthenticated) return;
+
+    let detachPush: (() => void) | undefined;
+    let detachExpo: (() => void) | undefined;
+
+    const setupPush = async () => {
+      await registerCurrentDeviceForPush();
+      detachPush = attachPushListeners({
+        onNotificationOpened: (data) => {
+          handleNotificationOpen(data);
+        },
+      });
+      detachExpo = attachExpoNotificationInboxListeners();
+    };
+
+    setupPush().catch(() => undefined);
+
+    return () => {
+      detachPush?.();
+      detachExpo?.();
+    };
+  }, [bootstrapped, isHydrated, isAuthenticated]);
 
   useEffect(() => {
     if (!bootstrapped || !isHydrated) return;
@@ -45,14 +84,14 @@ function AuthBootstrap({ children }: { children: ReactNode }) {
     const onProtectedRoute = !inAuthGroup;
 
     if (isAuthenticated && inAuthGroup) {
-      router.replace('/(tabs)');
+      router.replace(getDefaultTabsHref(userData));
       return;
     }
 
     if (!isAuthenticated && onProtectedRoute) {
-      router.replace('/(auth)/login');
+      router.replace('/(auth)/welcome');
     }
-  }, [bootstrapped, isHydrated, isAuthenticated, segments]);
+  }, [bootstrapped, isHydrated, isAuthenticated, segments, userData]);
 
   useEffect(() => {
     if (!bootstrapped || !isHydrated) return;
@@ -71,21 +110,14 @@ function AuthBootstrap({ children }: { children: ReactNode }) {
 }
 
 function RootNavigator() {
-  const colorScheme = useColorScheme();
+  const { isDark } = useAppTheme();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
       <AuthBootstrap>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="profile"
-            options={{
-              presentation: 'card',
-              animation: 'slide_from_right',
-            }}
-          />
           <Stack.Screen
             name="settings"
             options={{
@@ -93,9 +125,30 @@ function RootNavigator() {
               animation: 'slide_from_right',
             }}
           />
+          <Stack.Screen
+            name="alerts"
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="tracker-details"
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="notification/[id]"
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
         </Stack>
       </AuthBootstrap>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }
@@ -103,7 +156,9 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <Provider store={store}>
-      <RootNavigator />
+      <AppThemeProvider>
+        <RootNavigator />
+      </AppThemeProvider>
     </Provider>
   );
 }

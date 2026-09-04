@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { WyreColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme-context';
 
 type ScreenCardProps = {
   children: ReactNode;
@@ -9,9 +9,17 @@ type ScreenCardProps = {
 };
 
 export function ScreenCard({ children, title }: ScreenCardProps) {
+  const { colors } = useAppTheme();
+
   return (
-    <View style={styles.card}>
-      {title ? <Text style={styles.cardTitle}>{title}</Text> : null}
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.surface },
+      ]}>
+      {title ? (
+        <Text style={[styles.cardTitle, { color: colors.textOnCard }]}>{title}</Text>
+      ) : null}
       {children}
     </View>
   );
@@ -23,10 +31,12 @@ type DetailFieldProps = {
 };
 
 export function DetailField({ label, value }: DetailFieldProps) {
+  const { colors } = useAppTheme();
+
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <Text style={styles.fieldValue}>{value}</Text>
+      <Text style={[styles.fieldLabel, { color: colors.textOnCardSecondary }]}>{label}</Text>
+      <Text style={[styles.fieldValue, { color: colors.textOnCard }]}>{value}</Text>
     </View>
   );
 }
@@ -37,9 +47,11 @@ type DetailSectionProps = {
 };
 
 export function DetailSection({ title, children }: DetailSectionProps) {
+  const { colors } = useAppTheme();
+
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={[styles.section, { borderTopColor: colors.border }]}>
+      <Text style={[styles.sectionTitle, { color: colors.textOnCard }]}>{title}</Text>
       <View style={styles.sectionBody}>{children}</View>
     </View>
   );
@@ -47,17 +59,13 @@ export function DetailSection({ title, children }: DetailSectionProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 22,
-    borderWidth: 1,
-    borderColor: WyreColors.border,
   },
   cardTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: WyreColors.textPrimary,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -71,24 +79,20 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 12,
     fontWeight: '500',
-    color: WyreColors.textSecondary,
     letterSpacing: 0.2,
   },
   fieldValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: WyreColors.textPrimary,
   },
   section: {
     paddingTop: 18,
     marginTop: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: WyreColors.border,
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: WyreColors.textPrimary,
     marginBottom: 14,
   },
   sectionBody: {

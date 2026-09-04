@@ -1,21 +1,35 @@
-import { Image } from 'expo-image';
 import { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AUTH_LOGO } from '@/constants/auth-logo';
-import { WyreColors } from '@/constants/theme';
+import { WyreWordmark } from '@/components/auth/wyre-wordmark';
+import { useAppTheme } from '@/context/theme-context';
 
 type AppHeaderProps = {
+  leftContent?: ReactNode;
   rightAction?: ReactNode;
+  showWordmark?: boolean;
 };
 
-export function AppHeader({ rightAction }: AppHeaderProps) {
+export function AppHeader({
+  leftContent,
+  rightAction,
+  showWordmark = true,
+}: AppHeaderProps) {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-      <Image source={AUTH_LOGO.source} style={styles.logo} contentFit="contain" />
+    <View
+      style={[
+        styles.header,
+        {
+          paddingTop: insets.top + 12,
+          backgroundColor: colors.headerBg,
+          borderBottomColor: isDark ? 'transparent' : colors.border,
+        },
+      ]}>
+      {leftContent ?? (showWordmark ? <WyreWordmark width={96} height={38} /> : <View />)}
       {rightAction ? <View style={styles.rightAction}>{rightAction}</View> : null}
     </View>
   );
@@ -23,18 +37,12 @@ export function AppHeader({ rightAction }: AppHeaderProps) {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
     paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: WyreColors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  logo: {
-    width: 96,
-    height: 38,
   },
   rightAction: {
     marginLeft: 12,

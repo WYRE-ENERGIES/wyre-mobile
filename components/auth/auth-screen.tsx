@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { ReactNode, useEffect, useState } from 'react';
 import {
   Keyboard,
@@ -9,16 +8,25 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AUTH_LOGO } from '@/constants/auth-logo';
+import { AuthBackdrop } from '@/components/auth/auth-backdrop';
 
 type AuthScreenProps = {
   children: ReactNode;
   footer?: ReactNode;
-  /** Hide the static header logo (used while the flying splash logo animates in). */
   hideLogo?: boolean;
+  showHouse?: boolean;
+  contentGap?: number;
+  contentPosition?: 'center' | 'flex-end';
 };
 
-export function AuthScreen({ children, footer, hideLogo = false }: AuthScreenProps) {
+export function AuthScreen({
+  children,
+  footer,
+  hideLogo = false,
+  showHouse = true,
+  contentGap = 20,
+  contentPosition = 'flex-end',
+}: AuthScreenProps) {
   const insets = useSafeAreaInsets();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
@@ -36,15 +44,7 @@ export function AuthScreen({ children, footer, hideLogo = false }: AuthScreenPro
   }, []);
 
   return (
-    <View style={styles.root}>
-      <View style={[styles.logoHeader, { paddingTop: insets.top + AUTH_LOGO.headerOffset }]}>
-        {hideLogo ? (
-          <View style={styles.logoSlot} />
-        ) : (
-          <Image source={AUTH_LOGO.source} style={styles.logo} contentFit="contain" />
-        )}
-      </View>
-
+    <AuthBackdrop hideLogo={hideLogo} showHouse={!keyboardOpen && showHouse}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -52,51 +52,34 @@ export function AuthScreen({ children, footer, hideLogo = false }: AuthScreenPro
           style={[
             styles.formArea,
             {
-              justifyContent: keyboardOpen ? 'flex-start' : 'center',
+              justifyContent: keyboardOpen ? 'flex-start' : contentPosition,
               paddingTop: keyboardOpen ? 8 : 0,
-              paddingBottom: Math.max(insets.bottom, 20),
+              paddingBottom: Math.max(insets.bottom, 24) + 12,
             },
           ]}>
-          <View style={styles.card}>{children}</View>
+          <View style={[styles.card, { gap: contentGap }]}>{children}</View>
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </AuthBackdrop>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
   flex: {
     flex: 1,
   },
-  logoHeader: {
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  logoSlot: {
-    width: AUTH_LOGO.finalWidth,
-    height: AUTH_LOGO.finalHeight,
-  },
-  logo: {
-    width: AUTH_LOGO.finalWidth,
-    height: AUTH_LOGO.finalHeight,
-  },
   formArea: {
     flex: 1,
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
   },
   card: {
     width: '100%',
     maxWidth: 420,
     alignSelf: 'center',
-    gap: 20,
   },
   footer: {
-    marginTop: 28,
+    marginTop: 20,
     alignItems: 'center',
   },
 });

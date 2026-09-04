@@ -1,4 +1,3 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useState } from 'react';
 import {
   Platform,
@@ -10,37 +9,57 @@ import {
   View,
 } from 'react-native';
 
-import { WyreColors } from '@/constants/theme';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useAppTheme } from '@/context/theme-context';
 
 type AuthTextFieldProps = TextInputProps & {
   label?: string;
   error?: string;
   isPassword?: boolean;
+  tone?: 'purple' | 'neutral';
 };
 
 export function AuthTextField({
   label,
   error,
   isPassword = false,
+  tone = 'purple',
   style,
   ...props
 }: AuthTextFieldProps) {
   const [focused, setFocused] = useState(false);
   const [secure, setSecure] = useState(isPassword);
+  const { colors, isDark } = useAppTheme();
 
   return (
     <View style={styles.wrap}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? (
+        <Text style={[styles.label, { color: isDark ? colors.textOnPageMuted : colors.textSecondary }]}>
+          {label}
+        </Text>
+      ) : null}
       <View
         style={[
           styles.field,
-          focused && styles.fieldFocused,
-          !!error && styles.fieldError,
+          {
+            backgroundColor: isDark
+              ? tone === 'neutral'
+                ? 'rgba(255,255,255,0.08)'
+                : 'rgba(112, 77, 139, 0.58)'
+              : '#fff',
+            borderColor: isDark
+              ? tone === 'neutral'
+                ? 'rgba(255,255,255,0.3)'
+                : 'rgba(255,255,255,0.5)'
+              : colors.inputBorder,
+          },
+          focused && { borderColor: colors.accent },
+          !!error && { borderColor: colors.error },
         ]}>
         <TextInput
           {...props}
           secureTextEntry={secure}
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={isDark ? 'rgba(255,255,255,0.52)' : '#9CA3AF'}
           onFocus={(e) => {
             setFocused(true);
             props.onFocus?.(e);
@@ -49,7 +68,11 @@ export function AuthTextField({
             setFocused(false);
             props.onBlur?.(e);
           }}
-          style={[styles.input, style]}
+          style={[
+            styles.input,
+            { color: isDark ? colors.textOnPage : colors.textOnCard },
+            style,
+          ]}
           autoCapitalize={props.autoCapitalize ?? 'none'}
           autoCorrect={props.autoCorrect ?? false}
         />
@@ -58,15 +81,15 @@ export function AuthTextField({
             onPress={() => setSecure((prev) => !prev)}
             hitSlop={10}
             style={({ pressed }) => [styles.eyeBtn, pressed && styles.pressed]}>
-            <MaterialIcons
-              name={secure ? 'visibility-off' : 'visibility'}
+            <IconSymbol
+              name={secure ? 'eye.slash' : 'eye'}
               size={22}
-              color="#9CA3AF"
+              color={isDark ? 'rgba(255,255,255,0.55)' : '#9CA3AF'}
             />
           </Pressable>
         ) : null}
       </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
     </View>
   );
 }
@@ -78,34 +101,23 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: WyreColors.textSecondary,
     letterSpacing: 0.2,
     marginLeft: 2,
   },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F0FA',
     borderWidth: 1.5,
-    borderColor: 'rgba(92, 18, 167, 0.14)',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    minHeight: 54,
-  },
-  fieldFocused: {
-    borderColor: WyreColors.purple,
-    backgroundColor: '#FAF7FD',
-  },
-  fieldError: {
-    borderColor: WyreColors.error,
+    borderRadius: 999,
+    paddingHorizontal: 22,
+    minHeight: 62,
+    zIndex: 1,
   },
   input: {
     flex: 1,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '500',
-    color: WyreColors.textPrimary,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
-    // Avoid Android focus flickers from elevation layout changes
     includeFontPadding: false,
   },
   eyeBtn: {
@@ -117,7 +129,6 @@ const styles = StyleSheet.create({
   },
   error: {
     fontSize: 13,
-    color: WyreColors.error,
     marginLeft: 2,
   },
 });

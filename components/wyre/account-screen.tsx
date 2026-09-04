@@ -1,4 +1,3 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { ReactNode } from 'react';
 import {
@@ -12,28 +11,47 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { AppHeader } from '@/components/wyre/app-header';
-import { WyreColors } from '@/constants/theme';
+import { useAppTheme } from '@/context/theme-context';
 
 type AccountScreenProps = {
   title: string;
   children: ReactNode;
+  showWordmark?: boolean;
+  titleInHeader?: boolean;
 };
 
-export function AccountScreen({ title, children }: AccountScreenProps) {
+export function AccountScreen({
+  title,
+  children,
+  showWordmark = true,
+  titleInHeader = false,
+}: AccountScreenProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.pageBg }]}>
       <AppHeader
+        showWordmark={showWordmark}
+        leftContent={
+          titleInHeader ? (
+            <Text style={[styles.headerTitle, { color: colors.textOnPage }]}>{title}</Text>
+          ) : undefined
+        }
         rightAction={
           <Pressable
             onPress={() => router.back()}
-            style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.closeBtn,
+              { backgroundColor: colors.surfaceMuted },
+              pressed && styles.pressed,
+            ]}
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel="Go back">
-            <MaterialIcons name="close" size={22} color={WyreColors.textPrimary} />
+            <IconSymbol name="xmark" size={22} color={colors.textOnPage} />
           </Pressable>
         }
       />
@@ -49,7 +67,9 @@ export function AccountScreen({ title, children }: AccountScreenProps) {
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>{title}</Text>
+          {!titleInHeader ? (
+            <Text style={[styles.title, { color: colors.textOnPage }]}>{title}</Text>
+          ) : null}
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -60,7 +80,6 @@ export function AccountScreen({ title, children }: AccountScreenProps) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: WyreColors.pageBg,
   },
   flex: {
     flex: 1,
@@ -73,8 +92,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: WyreColors.textPrimary,
     marginBottom: 4,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 26,
+    fontWeight: '700',
   },
   closeBtn: {
     width: 40,
@@ -82,7 +105,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: WyreColors.pageBg,
   },
   pressed: {
     opacity: 0.7,

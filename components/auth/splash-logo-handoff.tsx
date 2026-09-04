@@ -12,40 +12,48 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BrandedSplash } from '@/components/auth/branded-splash';
 import { AUTH_LOGO } from '@/constants/auth-logo';
+import { useAppTheme } from '@/context/theme-context';
+
+const HOLD_MS = 1400;
+const FLY_MS = 780;
+
+const logoSource = (isDark: boolean) => (isDark ? AUTH_LOGO.sourceDark : AUTH_LOGO.source);
+
+/** Skip the launch splash when returning to Welcome in the same session. */
+let splashPlayed = false;
 
 type SplashLogoHandoffProps = {
   children: (props: { hideLogo: boolean }) => ReactNode;
-  /** Skip animation (e.g. returning from forgot-password). */
   skip?: boolean;
   onComplete?: () => void;
 };
 
-/**
- * Keeps the native splash logo on screen, then animates that same Wyre wordmark
- * upward into the login header slot before revealing the form.
- */
 export function SplashLogoHandoff({
   children,
   skip = false,
   onComplete,
 }: SplashLogoHandoffProps) {
   const insets = useSafeAreaInsets();
+  const { isDark } = useAppTheme();
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
-  const progress = useSharedValue(skip ? 1 : 0);
-  const formOpacity = useSharedValue(skip ? 1 : 0);
-  const [ready, setReady] = useState(skip);
+  const skipAnim = skip || splashPlayed;
+  const progress = useSharedValue(skipAnim ? 1 : 0);
+  const formOpacity = useSharedValue(skipAnim ? 1 : 0);
+  const splashOpacity = useSharedValue(skipAnim ? 0 : 1);
+  const [ready, setReady] = useState(skipAnim);
 
   const { width: screenW, height: screenH } = Dimensions.get('window');
 
   const startLeft = (screenW - AUTH_LOGO.splashWidth) / 2;
   const startTop = (screenH - AUTH_LOGO.splashHeight) / 2;
-  const endLeft = (screenW - AUTH_LOGO.finalWidth) / 2;
+  const endLeft = 24;
   const endTop = insets.top + AUTH_LOGO.headerOffset;
 
   useEffect(() => {
-    if (skip) {
+    if (skipAnim) {
       SplashScreen.hideAsync().catch(() => undefined);
       return;
     }
@@ -53,6 +61,7 @@ export function SplashLogoHandoff({
     let cancelled = false;
 
     const finishHandoff = () => {
+      splashPlayed = true;
       setReady(true);
       onCompleteRef.current?.();
     };
@@ -64,25 +73,26 @@ export function SplashLogoHandoff({
       await SplashScreen.hideAsync().catch(() => undefined);
       if (cancelled) return;
 
-      progress.value = withDelay(
-        60,
-        withTiming(
-          1,
-          {
-            duration: 780,
-            easing: Easing.bezier(0.22, 1, 0.36, 1),
-          },
-          (finished) => {
-            if (finished) {
-              runOnJS(finishHandoff)();
-            }
-          },
-        ),
+      await new Promise((r) => setTimeout(r, HOLD_MS));
+      if (cancelled) return;
+
+      progress.value = withTiming(
+        1,
+        {
+          duration: FLY_MS,
+          easing: Easing.bezier(0.22, 1, 0.36, 1),
+        },
+        (finished) => {
+          if (finished) {
+            runOnJS(finishHandoff)();
+          }
+        },
       );
 
+      splashOpacity.value = withTiming(0, { duration: 420, easing: Easing.out(Easing.cubic) });
       formOpacity.value = withDelay(
-        480,
-        withTiming(1, { duration: 360, easing: Easing.out(Easing.cubic) }),
+        280,
+        withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) }),
       );
     };
 
@@ -91,17 +101,15 @@ export function SplashLogoHandoff({
     return () => {
       cancelled = true;
     };
-  }, [skip, progress, formOpacity]);
+  }, [skipAnim, progress, formOpacity, splashOpacity]);
 
   const flyingStyle = useAnimatedStyle(() => {
     const left = startLeft + (endLeft - startLeft) * progress.value;
     const top = startTop + (endTop - startTop) * progress.value;
     const width =
-      AUTH_LOGO.splashWidth +
-      (AUTH_LOGO.finalWidth - AUTH_LOGO.splashWidth) * progress.value;
+      AUTH_LOGO.splashWidth + (AUTH_LOGO.finalWidth - AUTH_LOGO.splashWidth) * progress.value;
     const height =
-      AUTH_LOGO.splashHeight +
-      (AUTH_LOGO.finalHeight - AUTH_LOGO.splashHeight) * progress.value;
+      AUTH_LOGO.splashHeight + (AUTH_LOGO.finalHeight - AUTH_LOGO.splashHeight) * progress.value;
 
     return {
       position: 'absolute' as const,
@@ -119,15 +127,23 @@ export function SplashLogoHandoff({
     opacity: formOpacity.value,
   }));
 
+  const splashStyle = useAnimatedStyle(() => ({
+    ...StyleSheet.absoluteFillObject,
+    opacity: splashOpacity.value,
+    zIndex: 1,
+  }));
+
   return (
-    <View style={styles.root}>
-      <Animated.View style={formStyle}>
-        {children({ hideLogo: !ready && !skip })}
+    <View style={[styles.root, { backgroundColor: isDark ? '#05010A' : '#F4F2F8' }]}>
+      <Animated.View style={splashStyle} pointerEvents="none">
+        <BrandedSplash />
       </Animated.View>
 
-      {!skip && !ready ? (
+      <Animated.View style={formStyle}>{children({ hideLogo: !ready && !skipAnim })}</Animated.View>
+
+      {!skipAnim && !ready ? (
         <Animated.View style={flyingStyle} pointerEvents="none">
-          <Image source={AUTH_LOGO.source} style={styles.flyingImage} contentFit="contain" />
+          <Image source={logoSource(isDark)} style={styles.flyingImage} contentFit="contain" />
         </Animated.View>
       ) : null}
     </View>
@@ -137,7 +153,6 @@ export function SplashLogoHandoff({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   flyingImage: {
     width: '100%',

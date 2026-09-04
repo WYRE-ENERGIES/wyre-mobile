@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useAppTheme } from '@/context/theme-context';
 import { formatKwh } from '@/lib/report/helpers';
-import { WyreColors } from '@/constants/theme';
 
 type BarItem = {
   label: string;
@@ -14,6 +14,7 @@ type HorizontalBarChartProps = {
 };
 
 export function HorizontalBarChart({ items }: HorizontalBarChartProps) {
+  const { colors } = useAppTheme();
   const max = Math.max(...items.map((item) => item.value), 1);
 
   return (
@@ -22,10 +23,10 @@ export function HorizontalBarChart({ items }: HorizontalBarChartProps) {
         const widthPct = Math.max((item.value / max) * 100, item.value > 0 ? 4 : 0);
         return (
           <View key={item.label} style={styles.row}>
-            <Text style={styles.label} numberOfLines={1}>
+            <Text style={[styles.label, { color: colors.textOnCard }]} numberOfLines={1}>
               {item.label}
             </Text>
-            <View style={styles.track}>
+            <View style={[styles.track, { backgroundColor: colors.surfaceMuted }]}>
               <View
                 style={[
                   styles.bar,
@@ -36,7 +37,9 @@ export function HorizontalBarChart({ items }: HorizontalBarChartProps) {
                 ]}
               />
             </View>
-            <Text style={styles.value}>{formatKwh(item.value)}</Text>
+            <Text style={[styles.value, { color: colors.textOnCardSecondary }]}>
+              {formatKwh(item.value)}
+            </Text>
           </View>
         );
       })}
@@ -57,13 +60,11 @@ const styles = StyleSheet.create({
     width: 92,
     fontSize: 12,
     fontWeight: '600',
-    color: WyreColors.textPrimary,
   },
   track: {
     flex: 1,
     height: 18,
     borderRadius: 999,
-    backgroundColor: '#EEF1F6',
     overflow: 'hidden',
   },
   bar: {
@@ -75,6 +76,5 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontSize: 12,
     fontWeight: '600',
-    color: WyreColors.textSecondary,
   },
 });
