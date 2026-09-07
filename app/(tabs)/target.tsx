@@ -595,10 +595,10 @@ export default function TargetScreen() {
                 <View style={styles.subsectionHeader}>
                   <View style={styles.headingCopy}>
                     <Text style={[styles.subsectionTitle, { color: colors.textOnCard }]}>
-                      SOC threshold rules
+                      Battery level alert rules (SOC)
                     </Text>
                     <Text style={[styles.subsectionHint, { color: colors.textOnCardSecondary }]}>
-                      Fires when battery level crosses a rule
+                      Get notified when the battery rises above or drops below a chosen level
                     </Text>
                   </View>
                   <AddButton

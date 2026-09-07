@@ -21,10 +21,16 @@ import { formatDecimalHours, formatLitres, formatShortDate } from '@/lib/format'
 type DieselDetailModalProps = {
   visible: boolean;
   month: string | null;
-  userId: string | null;
+  branchId: number | null;
   isOperator?: boolean;
   onClose: () => void;
 };
+
+function durationInMinutes(value: string): number {
+  const match = value.match(/(\d+)\s*Hrs?\s*:\s*(\d+)\s*Mins?/i);
+  if (!match) return 0;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
 
 function EntryCard({
   entry,
@@ -59,7 +65,7 @@ function EntryCard({
         <View style={styles.metric}>
           <Text style={[styles.metricLabel, { color: colors.textOnCardSecondary }]}>Hours</Text>
           <Text style={[styles.metricValue, { color: colors.textOnCard }]}>
-            {formatDecimalHours(entry.hours_of_use)}
+            {entry.hours_of_use}
           </Text>
         </View>
       </View>
@@ -70,7 +76,7 @@ function EntryCard({
 export function DieselDetailModal({
   visible,
   month,
-  userId,
+  branchId,
   isOperator = false,
   onClose,
 }: DieselDetailModalProps) {
@@ -81,7 +87,7 @@ export function DieselDetailModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!visible || !month || !userId) return;
+    if (!visible || !month || !branchId) return;
 
     const parsed = parseMonthForDrillDown(month);
     if (!parsed) {
@@ -94,7 +100,7 @@ export function DieselDetailModal({
     setLoading(true);
     setError(null);
 
-    void fetchDieselDailyUsage(userId, parsed.year, parsed.month)
+    void fetchDieselDailyUsage(branchId, parsed.year, parsed.month)
       .then((data) => {
         if (!cancelled) {
           const filtered = entriesInMonth(data, month);
@@ -118,11 +124,15 @@ export function DieselDetailModal({
     return () => {
       cancelled = true;
     };
-  }, [visible, month, userId]);
+  }, [visible, month, branchId]);
 
   const summary = useMemo(() => {
     const totalLitres = rows.reduce((sum, row) => sum + (row.quantity ?? 0), 0);
-    const totalHours = rows.reduce((sum, row) => sum + (row.hours_of_use ?? 0), 0);
+    const totalMinutes = rows.reduce(
+      (sum, row) => sum + durationInMinutes(row.hours_of_use),
+      0,
+    );
+    const totalHours = totalMinutes / 60;
     return { totalLitres, totalHours };
   }, [rows]);
 

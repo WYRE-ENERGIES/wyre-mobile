@@ -18,6 +18,7 @@ import { DieselStatusSection } from '@/components/diesel/diesel-status-section';
 import { DieselSummaryCards } from '@/components/diesel/diesel-summary-cards';
 import { DashboardScreen } from '@/components/wyre/dashboard-screen';
 import { useAppTheme } from '@/context/theme-context';
+import { useSiteCapabilities } from '@/context/site-capability-context';
 import { useDieselOverview } from '@/hooks/use-diesel-overview';
 import { getBranchId, isSolarCustomer } from '@/lib/auth-user';
 import { useAppSelector } from '@/redux/hooks';
@@ -39,6 +40,7 @@ const MONTHS = [
 
 export function DieselOverviewContent() {
   const { colors } = useAppTheme();
+  const { hasSolar } = useSiteCapabilities();
   const userData = useAppSelector((state) => state.auth.userData);
   const branchId = getBranchId(userData);
   const now = useMemo(() => new Date(), []);
@@ -62,7 +64,7 @@ export function DieselOverviewContent() {
       <DieselHeader
         monthLabel={MONTHS[month - 1]}
         year={year}
-        showTracker={!isSolarCustomer(userData)}
+        showTracker={hasSolar && !isSolarCustomer(userData)}
         onOpenTracker={() => router.push('/tracker-details')}
       />
       {loading && !data ? (

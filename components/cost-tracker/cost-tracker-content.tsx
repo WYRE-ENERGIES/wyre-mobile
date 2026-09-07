@@ -30,7 +30,7 @@ import type {
   UtilityPurchase,
 } from '@/lib/cost-tracker-types';
 import { formatKwh, formatLitres, formatNgn, formatNumber } from '@/lib/format';
-import { getUserId, getUserRoleLabel } from '@/lib/user-display';
+import { getUserRoleLabel } from '@/lib/user-display';
 import { useAppSelector } from '@/redux/hooks';
 
 const dieselOverviewColumns: TableColumn<DieselOverviewRow>[] = [
@@ -200,7 +200,6 @@ export function CostTrackerContent() {
   const { colors } = useAppTheme();
   const userData = useAppSelector((state) => state.auth.userData);
   const branchId = getBranchId(userData);
-  const userId = getUserId(userData);
   const isOperator = getUserRoleLabel(userData) === 'OPERATOR';
   const {
     data,
@@ -378,7 +377,7 @@ export function CostTrackerContent() {
       <DieselDetailModal
         visible={selectedMonth != null}
         month={selectedMonth}
-        userId={userId}
+        branchId={branchId}
         isOperator={isOperator}
         onClose={() => setSelectedMonth(null)}
       />

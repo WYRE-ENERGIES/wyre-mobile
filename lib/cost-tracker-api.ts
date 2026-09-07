@@ -61,11 +61,11 @@ export async function fetchCostTrackerBaseline(branchId: number): Promise<CostTr
 }
 
 export async function fetchDieselDailyUsage(
-  userId: string,
+  branchId: number,
   year: string,
   month: string,
 ): Promise<DieselDailyEntry[]> {
-  const response = await APIService.get(`diesel_tracker_overview/${userId}/${year}/${month}/`);
+  const response = await APIService.get(`diesel_tracker_overview/${branchId}/${year}/${month}/`);
   return unwrapData<DieselDailyEntry[]>(response);
 }
 

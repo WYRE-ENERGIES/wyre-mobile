@@ -14,18 +14,20 @@ type AuthScreenProps = {
   children: ReactNode;
   footer?: ReactNode;
   hideLogo?: boolean;
-  showHouse?: boolean;
+  showDiagram?: boolean;
   contentGap?: number;
-  contentPosition?: 'center' | 'flex-end';
+  contentPosition?: 'center' | 'flex-end' | 'flex-start';
+  fill?: boolean;
 };
 
 export function AuthScreen({
   children,
   footer,
   hideLogo = false,
-  showHouse = true,
+  showDiagram = false,
   contentGap = 20,
   contentPosition = 'flex-end',
+  fill = false,
 }: AuthScreenProps) {
   const insets = useSafeAreaInsets();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -44,7 +46,7 @@ export function AuthScreen({
   }, []);
 
   return (
-    <AuthBackdrop hideLogo={hideLogo} showHouse={!keyboardOpen && showHouse}>
+    <AuthBackdrop hideLogo={hideLogo} showDiagram={!keyboardOpen && showDiagram}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -57,7 +59,7 @@ export function AuthScreen({
               paddingBottom: Math.max(insets.bottom, 24) + 12,
             },
           ]}>
-          <View style={[styles.card, { gap: contentGap }]}>{children}</View>
+          <View style={[styles.card, fill && styles.cardFill, { gap: contentGap }]}>{children}</View>
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </View>
       </KeyboardAvoidingView>
@@ -77,6 +79,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     alignSelf: 'center',
+  },
+  cardFill: {
+    flex: 1,
   },
   footer: {
     marginTop: 20,

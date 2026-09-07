@@ -89,8 +89,9 @@ export type DieselDailyEntry = {
   fuel_consumption_id: number;
   date: string;
   quantity: number;
-  hours_of_use: number;
+  hours_of_use: string;
   energy_consumed?: Record<string, number>;
+  energy_per_litre?: Record<string, number>;
   litres_per_hour?: Record<string, number>;
 };
 

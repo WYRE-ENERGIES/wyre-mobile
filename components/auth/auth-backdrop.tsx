@@ -1,9 +1,9 @@
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EnergyOpsDiagram } from '@/components/auth/energy-ops-diagram';
 import { WyreWordmark } from '@/components/auth/wyre-wordmark';
 import { AUTH_LOGO } from '@/constants/auth-logo';
 import { useAppTheme } from '@/context/theme-context';
@@ -11,14 +11,14 @@ import { AuthRings } from "./auth-rings";
 
 type AuthBackdropProps = {
   children: ReactNode;
-  showHouse?: boolean;
+  showDiagram?: boolean;
   hideLogo?: boolean;
   logoAlign?: 'left' | 'center';
 };
 
 export function AuthBackdrop({
   children,
-  showHouse = false,
+  showDiagram = false,
   hideLogo = false,
   logoAlign = 'left',
 }: AuthBackdropProps) {
@@ -40,21 +40,16 @@ export function AuthBackdrop({
         )}
       </View>
 
-      {showHouse ? (
-        <View style={[styles.hero, { height: width * 1.03 }]}>
-          <Image
-            source={require('@/assets/images/solar-house.png')}
-            style={styles.house}
-            contentFit="contain"
-            contentPosition="bottom"
-          />
+      {showDiagram ? (
+        <View style={[styles.hero, { height: Math.min(width * 0.68, 280) }]}>
+          <EnergyOpsDiagram tone="backdrop" />
           <LinearGradient
             colors={
               isDark
-                ? ['transparent', 'rgba(5, 1, 10, 0.67)', '#05010A']
+                ? ['transparent', 'rgba(5, 1, 10, 0.55)', '#05010A']
                 : ['transparent', colors.pageBg]
             }
-            locations={isDark ? [0.55, 0.88, 1] : [0.55, 1]}
+            locations={isDark ? [0.5, 0.86, 1] : [0.5, 1]}
             style={styles.heroFade}
           />
         </View>
@@ -98,21 +93,16 @@ const styles = StyleSheet.create({
   },
   hero: {
     width: '100%',
-    marginTop: 0,
+    marginTop: 4,
+    justifyContent: 'center',
     overflow: 'hidden',
-  },
-  house: {
-    width: '100%',
-    height: '100%',
-    marginTop: -20,
-    alignSelf: 'center',
   },
   heroFade: {
     position: 'absolute',
     right: 0,
-    bottom: 20,
+    bottom: 0,
     left: 0,
-    height: '26%',
+    height: '28%',
   },
   children: {
     flex: 1,

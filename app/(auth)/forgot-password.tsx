@@ -47,7 +47,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <AuthScreen
-      showHouse={false}
+      showDiagram={false}
       contentPosition="center"
       footer={
         <Pressable

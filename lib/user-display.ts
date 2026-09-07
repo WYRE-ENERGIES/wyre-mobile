@@ -83,13 +83,11 @@ export function getAccountFields(userData: ProfileUserData): ProfileField[] {
   const fields: ProfileField[] = [];
   const username = asString(userData?.username);
   const role = getUserRoleLabel(userData);
-  const userId = getUserId(userData);
   const solar = getSolarCustomerLabel(userData);
   const email = getUserEmail(userData);
 
   if (username) fields.push({ label: 'Username', value: username });
   if (role) fields.push({ label: 'Role', value: role });
-  if (userId) fields.push({ label: 'User ID', value: userId });
   if (solar) fields.push({ label: 'Solar Customer', value: solar });
   if (email) fields.push({ label: 'Email', value: email });
 

@@ -61,113 +61,112 @@ export default function LoginScreen() {
   };
 
   return (
-    <AuthScreen contentGap={0}>
-      <View style={styles.header}>
+    <AuthScreen contentGap={0} showDiagram={false} fill>
+      <View style={styles.sheet}>
         <View pointerEvents="none" style={styles.watermarkWrap}>
-          {['Solar', 'Monitor'].map((line) => (
+          {['Energy', 'Monitor'].map((line) => (
             <Text
               key={line}
               numberOfLines={1}
               style={[
                 styles.watermark,
                 {
-                  color: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(17,24,39,0.05)',
+                  color: isDark ? 'rgba(255, 255, 255, 0.045)' : 'rgba(17,24,39,0.05)',
                   fontSize: watermarkSize,
-                  lineHeight: watermarkSize * 1.04,
+                  lineHeight: watermarkSize * 1.02,
                 },
               ]}>
               {line}
             </Text>
           ))}
         </View>
-        <Text style={[styles.title, { color: colors.textOnPage }]}>Welcome Back</Text>
-      </View>
 
-      <View style={styles.form}>
-        <View>
-          <AuthTextField
-            placeholder="Username"
-            value={username}
-            onChangeText={(text) => {
-              setUsername(text);
-              setFormError('');
-              if (touched.username) {
-                setFieldErrors((prev) => ({ ...prev, username: validateUsername(text) }));
-              }
-            }}
-            onBlur={() => {
-              setTouched((prev) => ({ ...prev, username: true }));
-              setFieldErrors((prev) => ({ ...prev, username: validateUsername(username) }));
-            }}
-            error={touched.username ? fieldErrors.username : undefined}
-            textContentType="username"
-            autoComplete="username"
-            returnKeyType="next"
-            maxLength={40}
-          />
+        <View style={styles.centerBlock}>
+          <Text style={[styles.title, { color: colors.textOnPage }]}>Welcome Back</Text>
+
+          <View style={styles.form}>
+            <AuthTextField
+              placeholder="Username"
+              value={username}
+              onChangeText={(text) => {
+                setUsername(text);
+                setFormError('');
+                if (touched.username) {
+                  setFieldErrors((prev) => ({ ...prev, username: validateUsername(text) }));
+                }
+              }}
+              onBlur={() => {
+                setTouched((prev) => ({ ...prev, username: true }));
+                setFieldErrors((prev) => ({ ...prev, username: validateUsername(username) }));
+              }}
+              error={touched.username ? fieldErrors.username : undefined}
+              textContentType="username"
+              autoComplete="username"
+              returnKeyType="next"
+              maxLength={40}
+            />
+
+            <View style={styles.passwordField}>
+              <AuthTextField
+                placeholder="Password"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setFormError('');
+                  if (touched.password) {
+                    setFieldErrors((prev) => ({ ...prev, password: validatePassword(text) }));
+                  }
+                }}
+                onBlur={() => {
+                  setTouched((prev) => ({ ...prev, password: true }));
+                  setFieldErrors((prev) => ({ ...prev, password: validatePassword(password) }));
+                }}
+                error={touched.password ? fieldErrors.password : undefined}
+                isPassword
+                textContentType="password"
+                autoComplete="password"
+                returnKeyType="go"
+                onSubmitEditing={onLogin}
+                maxLength={60}
+              />
+            </View>
+
+            <Pressable
+              onPress={() => router.push('/(auth)/forgot-password')}
+              style={({ pressed }) => [styles.forgotBtn, pressed && styles.pressed]}
+              hitSlop={8}>
+              <Text
+                style={[
+                  styles.forgotText,
+                  { color: isDark ? '#C184FF' : '#5C12A7' },
+                ]}>
+                Forgot Password ?
+              </Text>
+            </Pressable>
+
+            {formError ? <Text style={[styles.error, { color: colors.error }]}>{formError}</Text> : null}
+
+            <AuthButton
+              title="Login"
+              onPress={onLogin}
+              loading={loginUserLoading}
+              style={styles.submit}
+              accent={accent}
+            />
+          </View>
         </View>
-
-        <View style={styles.passwordField}>
-          <AuthTextField
-            placeholder="Password"
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              setFormError('');
-              if (touched.password) {
-                setFieldErrors((prev) => ({ ...prev, password: validatePassword(text) }));
-              }
-            }}
-            onBlur={() => {
-              setTouched((prev) => ({ ...prev, password: true }));
-              setFieldErrors((prev) => ({ ...prev, password: validatePassword(password) }));
-            }}
-            error={touched.password ? fieldErrors.password : undefined}
-            isPassword
-            textContentType="password"
-            autoComplete="password"
-            returnKeyType="go"
-            onSubmitEditing={onLogin}
-            maxLength={60}
-          />
-        </View>
-
-        <Pressable
-          onPress={() => router.push('/(auth)/forgot-password')}
-          style={({ pressed }) => [styles.forgotBtn, pressed && styles.pressed]}
-          hitSlop={8}>
-          <Text
-            style={[
-              styles.forgotText,
-              { color: isDark ? '#C184FF' : '#5C12A7' },
-            ]}>
-            Forgot Password ?
-          </Text>
-        </Pressable>
-
-        {formError ? <Text style={[styles.error, { color: colors.error }]}>{formError}</Text> : null}
-
-        <AuthButton
-          title="Login"
-          onPress={onLogin}
-          loading={loginUserLoading}
-          style={styles.submit}
-          accent={accent}
-        />
       </View>
     </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: 15,
-    position: 'relative',
-    zIndex: 1,
+  sheet: {
+    flex: 1,
   },
   watermarkWrap: {
     position: 'absolute',
-    top: -34,
+    top: -72,
     left: -18,
     width: '125%',
     zIndex: 0,
@@ -176,22 +175,27 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     includeFontPadding: false,
   },
-  title: {
-    fontSize: 30,
-    lineHeight: 33,
-    fontWeight: '800',
-    letterSpacing: -0.6,
+  centerBlock: {
+    flex: 1,
+    justifyContent: 'center',
     zIndex: 1,
+  },
+  title: {
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+    marginBottom: 28,
   },
   form: {
     gap: 0,
   },
   passwordField: {
-    marginTop: 20,
+    marginTop: 18,
   },
   forgotBtn: {
     alignSelf: 'flex-end',
-    marginTop: 12,
+    marginTop: 14,
     paddingVertical: 4,
   },
   forgotText: {
@@ -204,9 +208,10 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 14,
     textAlign: 'center',
+    marginTop: 12,
   },
   submit: {
-    marginTop: 48,
+    marginTop: 36,
     borderRadius: 999,
     minHeight: 62,
   },

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { AuthButton } from '@/components/auth/auth-button';
@@ -121,7 +121,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <AccountScreen title="Settings" showWordmark={false}>
+    <AccountScreen title="Settings" showWordmark={false} titleInHeader>
       <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
         <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
           <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
