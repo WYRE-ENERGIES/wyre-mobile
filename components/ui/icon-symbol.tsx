@@ -63,6 +63,7 @@ const MAPPING = {
   'checkmark.circle.fill': 'check-circle',
   'exclamationmark.circle.fill': 'error',
   'chart.line.uptrend.xyaxis': 'analytics',
+  'leaf.fill': 'eco',
 } as IconMapping;
 
 /**

@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert as RNAlert,
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -19,12 +20,17 @@ import { useNotificationInbox } from '@/hooks/use-notification-inbox';
 import {
   filterAlerts,
   groupAlertsByDate,
+  parseAlertCategory,
   type AlertFilter,
   type AlertSection,
   type WyreAlert,
 } from '@/lib/alerts';
 import { openNotificationById } from '@/lib/notification-routing';
-import { parseNotificationId } from '@/lib/notifications-api';
+import {
+  fetchNotificationCatalog,
+  parseNotificationId,
+  type NotificationCategoryCatalogItem,
+} from '@/lib/notifications-api';
 
 type ListItem =
   | { type: 'header'; key: string; title: string }
@@ -55,10 +61,30 @@ export default function AlertsScreen() {
     onMarkAllRead,
   } = useNotificationInbox();
   const [filter, setFilter] = useState<AlertFilter>('all');
+  const [categories, setCategories] = useState<NotificationCategoryCatalogItem[]>([]);
   const items = useMemo(
     () => flattenSections(groupAlertsByDate(filterAlerts(alerts, filter))),
     [alerts, filter],
   );
+  const chips = useMemo(() => {
+    const base: { id: AlertFilter; label: string }[] = [
+      { id: 'all', label: 'All' },
+      { id: 'unread', label: unreadCount ? `Unread (${unreadCount})` : 'Unread' },
+    ];
+    return [
+      ...base,
+      ...categories.map((item) => ({
+        id: parseAlertCategory(item.code) as AlertFilter,
+        label: item.label,
+      })),
+    ];
+  }, [categories, unreadCount]);
+
+  useEffect(() => {
+    fetchNotificationCatalog()
+      .then((catalog) => setCategories(catalog.categories))
+      .catch(() => setCategories([]));
+  }, []);
 
   const openAlert = (alert: WyreAlert) => {
     const serverId = alert.serverId ?? parseNotificationId(alert.id);
@@ -94,27 +120,33 @@ export default function AlertsScreen() {
         ) : null}
       </View>
 
-      <View style={[styles.filters, { backgroundColor: colors.surface }]}>
-        {(['all', 'unread'] as AlertFilter[]).map((item) => {
-          const selected = filter === item;
-          return (
-            <Pressable
-              key={item}
-              onPress={() => setFilter(item)}
-              style={[
-                styles.filter,
-                selected && { backgroundColor: colors.surfaceMuted },
-              ]}>
-              <Text
+      <View style={styles.filtersBar}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersScroll}
+          contentContainerStyle={[styles.filtersContent, { backgroundColor: colors.surface }]}>
+          {chips.map((item) => {
+            const selected = filter === item.id;
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => setFilter(item.id)}
                 style={[
-                  styles.filterText,
-                  { color: selected ? colors.textOnCard : colors.textOnCardSecondary },
+                  styles.filter,
+                  selected && { backgroundColor: colors.surfaceMuted },
                 ]}>
-                {item === 'all' ? 'All' : `Unread${unreadCount ? ` (${unreadCount})` : ''}`}
-              </Text>
-            </Pressable>
-          );
-        })}
+                <Text
+                  style={[
+                    styles.filterText,
+                    { color: selected ? colors.textOnCard : colors.textOnCardSecondary },
+                  ]}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {loading ? (
@@ -123,6 +155,7 @@ export default function AlertsScreen() {
         </View>
       ) : (
         <FlatList
+          style={styles.listWrap}
           data={items}
           keyExtractor={(item) => item.key}
           showsVerticalScrollIndicator={false}
@@ -160,7 +193,11 @@ export default function AlertsScreen() {
                 <IconSymbol name="bell" size={30} color={colors.textOnPageMuted} />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.textOnPage }]}>
-                {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+                {filter === 'unread'
+                  ? 'No unread notifications'
+                  : filter === 'all'
+                    ? 'No notifications yet'
+                    : `No ${filter.replaceAll('_', ' ')} notifications`}
               </Text>
               <Text style={[styles.emptyBody, { color: colors.textOnPageMuted }]}>
                 Alerts about your energy system will appear here.
@@ -188,18 +225,29 @@ const styles = StyleSheet.create({
   title: { fontSize: 25, fontWeight: '800', letterSpacing: -0.4 },
   subtitle: { marginTop: 1, fontSize: 12 },
   markAll: { fontSize: 12, fontWeight: '700' },
-  filters: {
-    alignSelf: 'flex-start',
+  filtersBar: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  filtersScroll: {
+    flexGrow: 0,
+  },
+  filtersContent: {
     flexDirection: 'row',
-    marginHorizontal: 20,
+    alignItems: 'center',
+    gap: 4,
     padding: 4,
     borderRadius: 14,
-    gap: 3,
   },
-  filter: { minWidth: 76, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 11 },
+  filter: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 11,
+  },
   filterText: { textAlign: 'center', fontSize: 12, fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { paddingTop: 10 },
+  listWrap: { flex: 1 },
+  list: { paddingTop: 10, flexGrow: 1 },
   emptyList: { flexGrow: 1, justifyContent: 'center' },
   sectionTitle: {
     paddingHorizontal: 20,

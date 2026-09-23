@@ -10,6 +10,7 @@ type DieselHeaderProps = {
   year: number;
   showTracker?: boolean;
   onOpenTracker?: () => void;
+  onAddEntry?: () => void;
 };
 
 export function DieselHeader({
@@ -17,6 +18,7 @@ export function DieselHeader({
   year,
   showTracker = false,
   onOpenTracker,
+  onAddEntry,
 }: DieselHeaderProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
@@ -27,6 +29,15 @@ export function DieselHeader({
         <View style={styles.titleRow}>
           <Text style={[styles.title, { color: colors.textOnPage }]}>Diesel Overview</Text>
           <View style={styles.actions}>
+            {onAddEntry ? (
+              <Pressable
+                accessibilityLabel="Add diesel entry"
+                hitSlop={8}
+                onPress={onAddEntry}
+                style={({ pressed }) => [styles.trackerButton, pressed && styles.pressed]}>
+                <IconSymbol name="plus" size={26} color={colors.textOnPage} />
+              </Pressable>
+            ) : null}
             {showTracker && onOpenTracker ? (
               <Pressable
                 accessibilityLabel="Open Tracker"

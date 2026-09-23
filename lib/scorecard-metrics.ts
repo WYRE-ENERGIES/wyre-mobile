@@ -67,6 +67,7 @@ export type ScorecardMetric = {
   generatorEntries?: ScorecardGeneratorEntry[];
   footerNote?: string;
   footer?: string;
+  unavailable?: boolean;
 };
 
 type DeviceLike = {
@@ -77,9 +78,25 @@ type DeviceLike = {
 };
 
 function asNumber(value: unknown): number | null {
-  if (typeof value === 'number' && !Number.isNaN(value)) return value;
-  if (typeof value === 'string' && value.trim() && !Number.isNaN(Number(value))) {
-    return Number(value);
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const direct = Number(value);
+    if (Number.isFinite(direct)) return direct;
+    const match = value.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+    if (match) {
+      const parsed = Number(match[0]);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return null;
+}
+
+function nestedNumber(value: unknown, keys: string[]): number | null {
+  if (!value || typeof value !== 'object') return asNumber(value);
+  const record = value as Record<string, unknown>;
+  for (const key of keys) {
+    const parsed = asNumber(record[key]);
+    if (parsed != null) return parsed;
   }
   return null;
 }
@@ -220,8 +237,8 @@ function savingsColor(value: number | null): string | undefined {
 function getGeneratorSizeStatus(usage: number): ScorecardStatus {
   const ratio = usage / 100;
 
-  if (ratio === 0.01) {
-    return { tone: 'bad', label: 'Not in use' };
+  if (ratio <= 0.01) {
+    return { tone: 'neutral', label: 'Not in use' };
   }
   if (ratio > 0.7) {
     return { tone: 'bad', label: 'Overloaded' };
@@ -259,19 +276,30 @@ function generatorDevices(payload: unknown): DeviceLike[] {
   );
 }
 
-function allGeneratorMetrics(payload: unknown, field: string): Record<string, unknown>[] {
-  const entries: Record<string, unknown>[] = [];
+function isGeneratorLike(device: DeviceLike, fieldValue: Record<string, unknown>): boolean {
+  return Boolean(
+    device.is_generator || device.score_card?.is_generator || fieldValue.is_gen === true,
+  );
+}
 
-  for (const device of generatorDevices(payload)) {
+function allGeneratorMetrics(payload: unknown, field: string): Record<string, unknown>[] {
+  const devices = devicesOf(payload);
+  const fromFlags: Record<string, unknown>[] = [];
+  const fromField: Record<string, unknown>[] = [];
+
+  for (const device of devices) {
     const value = device.score_card?.[field];
     if (!value || typeof value !== 'object') continue;
-    entries.push({
-      ...(value as Record<string, unknown>),
-      name: device.name ?? 'Generator',
-    });
+    const row = value as Record<string, unknown>;
+    const entry = {
+      ...row,
+      name: (typeof row.name === 'string' && row.name.trim() ? row.name : device.name) ?? 'Generator',
+    };
+    fromField.push(entry);
+    if (isGeneratorLike(device, row)) fromFlags.push(entry);
   }
 
-  return entries;
+  return fromFlags.length ? fromFlags : fromField;
 }
 
 function metricFromBaseline(payload: unknown): ScorecardMetric {
@@ -401,7 +429,7 @@ function metricFromGenSize(payload: unknown): ScorecardMetric {
   const tones: ScorecardTone[] = [];
 
   const generatorEntries: ScorecardGeneratorEntry[] = generators.map((data, index) => {
-    const size = asNumber(data.size);
+    const size = asNumber(data.gen_size ?? data.size);
     const usage = asNumber(data.usage ?? data.percentage);
     const unit = typeof data.unit === 'string' ? data.unit : '%';
     const name = typeof data.name === 'string' ? data.name : 'Generator';
@@ -440,7 +468,7 @@ function metricFromGenSize(payload: unknown): ScorecardMetric {
   return {
     key: 'gen-size',
     title: 'Generator Size Efficiency',
-    headline: '—',
+    headline: '',
     status: { tone: cardTone, label: cardLabel },
     generatorEntries: generatorEntries.length ? generatorEntries : undefined,
     rows: generatorEntries.length
@@ -461,10 +489,13 @@ function metricFromFuel(payload: unknown): ScorecardMetric {
     const baseline = asNumber(fuelEfficiency.baseline);
     const dieselUsage = asNumber(data.diesel_usage);
     const timeUsed = asNumber(data.time_used);
-    const size = asNumber(data.size);
+    const size = asNumber(data.gen_size ?? data.size);
     const name = typeof data.name === 'string' ? data.name : 'Generator';
     const scoreLabel = currentScore != null ? `${formatNumber(currentScore)} kWh/L` : '—';
-    const status = getFuelEfficiencyStatus(currentScore, baseline);
+    const status =
+      (currentScore == null || currentScore === 0) && (dieselUsage == null || dieselUsage === 0)
+        ? ({ tone: 'neutral', label: 'Not in use' } as ScorecardStatus)
+        : getFuelEfficiencyStatus(currentScore, baseline);
     const ring = toneColor(status.tone);
     tones.push(status.tone);
 
@@ -497,7 +528,7 @@ function metricFromFuel(payload: unknown): ScorecardMetric {
   return {
     key: 'fuel',
     title: 'Fuel Efficiency',
-    headline: '—',
+    headline: '',
     status: { tone: cardTone, label: cardLabel },
     generatorEntries: generatorEntries.length ? generatorEntries : undefined,
     rows: generatorEntries.length
@@ -509,46 +540,84 @@ function metricFromFuel(payload: unknown): ScorecardMetric {
 
 function metricFromOperating(payload: unknown): ScorecardMetric {
   const generators = generatorDevices(payload);
-  let totalHours = 0;
+  const sources = generators.length ? generators : devicesOf(payload);
+  let timeWasted = 0;
+  let energyWasted = 0;
+  let costWasted: number | null = null;
   let found = false;
 
-  for (const device of generators) {
-    const operating = device.score_card?.operating_time as Record<string, unknown> | undefined;
-    const value = asNumber(
-      (operating?.total as Record<string, unknown> | undefined)?.value ?? operating?.value,
-    );
-    if (value != null) {
-      totalHours += value;
+  for (const device of sources) {
+    const operating = device.score_card?.operating_time;
+    if (!operating || typeof operating !== 'object') continue;
+    const row = operating as Record<string, unknown>;
+    const time = nestedNumber(row.estimated_time_wasted, ['value', 'total']);
+    const energy = nestedNumber(row.estimated_energy_wasted, ['total', 'value']);
+    const cost = nestedNumber(row.estimated_cost, ['value', 'total']);
+    if (time != null) {
+      timeWasted += time;
       found = true;
+    }
+    if (energy != null) {
+      energyWasted += energy;
+      found = true;
+    }
+    if (cost != null) {
+      costWasted = (costWasted ?? 0) + cost;
     }
   }
 
-  const headline = found ? `${formatNumber(totalHours)} h` : '—';
+  const status: ScorecardStatus = !found
+    ? { tone: 'neutral', label: 'No data' }
+    : timeWasted > 0
+      ? { tone: 'warn', label: 'Wastage recorded' }
+      : { tone: 'good', label: 'No wastage' };
 
   return {
     key: 'operating',
     title: 'Operating Time Deviation',
-    headline,
-    headlineHint: 'generator runtime',
-    status: found
-      ? { tone: 'neutral', label: 'Runtime tracked' }
-      : { tone: 'neutral', label: 'No data' },
+    headline: found ? `${formatNumber(timeWasted)} h` : '',
+    headlineHint: found ? 'time wasted' : undefined,
+    status,
     rows: [
-      { label: 'Generators tracked', value: String(generators.length || '—') },
-      { label: 'Total operating time', value: found ? `${formatNumber(totalHours)} h` : '—' },
+      { label: 'Time wasted', value: found ? `${formatNumber(timeWasted)} h` : '—' },
+      { label: 'Energy wasted', value: found ? `${formatNumber(energyWasted)} kWh` : '—' },
+      {
+        label: 'Estimated cost',
+        value: costWasted != null ? `₦${formatNumber(costWasted)}` : '—',
+      },
     ],
+    footer: 'Idle generator hours this month',
   };
 }
 
-export function buildScorecardMetrics(data: {
-  baseline: unknown;
-  papr: unknown;
-  carbon: unknown;
-  genSize: unknown;
-  fuel: unknown;
-  operating: unknown;
-}): ScorecardMetric[] {
-  return [
+function markUnavailable(metric: ScorecardMetric): ScorecardMetric {
+  return {
+    ...metric,
+    unavailable: true,
+    headline: '',
+    headlineHint: undefined,
+    chart: undefined,
+    generatorEntries: undefined,
+    status: { tone: 'neutral', label: 'Unavailable' },
+    rows: [],
+    footerNote: undefined,
+    footer: 'This metric could not be loaded. Pull to refresh.',
+  };
+}
+
+export function buildScorecardMetrics(
+  data: {
+    baseline: unknown;
+    papr: unknown;
+    carbon: unknown;
+    genSize: unknown;
+    fuel: unknown;
+    operating: unknown;
+  },
+  failedKeys: string[] = [],
+): ScorecardMetric[] {
+  const failed = new Set(failedKeys);
+  const metrics = [
     metricFromBaseline(data.baseline),
     metricFromPapr(data.papr),
     metricFromCarbon(data.carbon),
@@ -556,4 +625,5 @@ export function buildScorecardMetrics(data: {
     metricFromFuel(data.fuel),
     metricFromOperating(data.operating),
   ];
+  return metrics.map((metric) => (failed.has(metric.key) ? markUnavailable(metric) : metric));
 }

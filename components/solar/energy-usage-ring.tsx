@@ -32,7 +32,7 @@ export function EnergyUsageRing({
   const centerSize = size * 0.74;
   const centerContent = (
     <>
-      <Text style={styles.centerLabel}>Energy Usages</Text>
+      <Text style={styles.centerLabel}>Energy Generation</Text>
       <Text style={styles.centerValue}>{Math.round(clamped)}%</Text>
     </>
   );

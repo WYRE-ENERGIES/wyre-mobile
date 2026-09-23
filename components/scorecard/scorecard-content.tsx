@@ -38,9 +38,7 @@ export function ScorecardContent() {
         <Text style={[styles.errorTitle, { color: colors.textOnPage }]}>
           Unable to load scorecard
         </Text>
-        <Text style={[styles.errorMessage, { color: colors.textOnPageMuted }]}>
-          Performance metrics could not be loaded right now.
-        </Text>
+        <Text style={[styles.errorMessage, { color: colors.textOnPageMuted }]}>{error}</Text>
         <Pressable
           style={[styles.retryButton, { backgroundColor: colors.accent }]}
           onPress={() => void refresh()}>
@@ -89,6 +87,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
+    paddingHorizontal: 24,
     paddingTop: 48,
   },
   loadingText: {

@@ -13,7 +13,7 @@ export function siteStatusSentence(data: SolarSiteStatus): string {
   if (data.battery?.direction === 'IN') return 'Solar is charging your battery';
   if (data.generator_power?.status === 'ON') return 'Your generator is supplying power';
   if (data.grid?.status === 'ON' && (data.grid.kw ?? 0) > 0) return 'You are drawing power from the grid';
-  if ((data.pv.kw ?? 0) > 0) return 'Your solar is powering the home';
+  if ((data.pv.kw ?? 0) > 0) return 'Your solar is powering the site';
   return 'Your system is resting right now';
 }
 
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 14,
     paddingTop: 16,
-    paddingBottom: 8,
+    paddingBottom: 14,
     gap: 8,
     overflow: 'hidden',
   },

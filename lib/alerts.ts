@@ -1,12 +1,13 @@
 export type AlertSeverity = 'critical' | 'warning' | 'info' | 'success';
 
 export type AlertCategory =
-  | 'generation'
-  | 'inverter'
+  | 'energy'
   | 'battery'
-  | 'weather'
-  | 'capacity'
-  | 'maintenance';
+  | 'solar'
+  | 'diesel'
+  | 'power_quality'
+  | 'operations'
+  | 'environment';
 
 export type WyreAlert = {
   id: string;
@@ -26,7 +27,7 @@ export type WyreAlert = {
   payload?: Record<string, unknown> | null;
 };
 
-export type AlertFilter = 'all' | 'unread';
+export type AlertFilter = 'all' | 'unread' | AlertCategory;
 
 export type AlertSection = {
   title: string;
@@ -34,36 +35,69 @@ export type AlertSection = {
 };
 
 const VALID_CATEGORIES = new Set<AlertCategory>([
-  'generation',
-  'inverter',
+  'energy',
   'battery',
-  'weather',
-  'capacity',
-  'maintenance',
+  'solar',
+  'diesel',
+  'power_quality',
+  'operations',
+  'environment',
 ]);
 
 const VALID_SEVERITIES = new Set<AlertSeverity>(['critical', 'warning', 'info', 'success']);
 
-const API_CATEGORY_MAP: Record<string, AlertCategory> = {
-  energy: 'generation',
-  solar: 'generation',
-  battery: 'battery',
-  system: 'maintenance',
+const LEGACY_CATEGORY_MAP: Record<string, AlertCategory> = {
+  generation: 'solar',
+  inverter: 'solar',
+  weather: 'solar',
+  capacity: 'solar',
+  maintenance: 'operations',
+  system: 'operations',
 };
 
 export function parseAlertCategory(value: unknown): AlertCategory {
-  if (typeof value !== 'string') return 'generation';
-  if (API_CATEGORY_MAP[value]) return API_CATEGORY_MAP[value];
+  if (typeof value !== 'string' || !value.trim()) return 'energy';
   if (VALID_CATEGORIES.has(value as AlertCategory)) {
     return value as AlertCategory;
   }
-  return 'generation';
+  return LEGACY_CATEGORY_MAP[value] ?? 'energy';
 }
 
-export function inferAlertSeverity(type?: string, category?: string): AlertSeverity {
+export function inferAlertSeverity(
+  type?: string,
+  category?: string,
+  payload?: Record<string, unknown> | null,
+): AlertSeverity {
+  if (type === 'daily_battery_soc') {
+    const verdict = String(payload?.verdict ?? '').toLowerCase();
+    const status = String(payload?.status_message ?? '').toLowerCase();
+    const soc = Number(payload?.battery_soc);
+    if (verdict === 'at_risk' || verdict === 'critical' || status.includes('critical')) {
+      return 'critical';
+    }
+    if (
+      status.includes('excellent') ||
+      status.includes('good') ||
+      (Number.isFinite(soc) && soc >= 70)
+    ) {
+      return 'success';
+    }
+    if (status.includes('poor') || status.includes('low') || (Number.isFinite(soc) && soc < 50)) {
+      return 'warning';
+    }
+    return 'info';
+  }
+  if (type === 'daily_solar_usage') return 'success';
   if (type?.includes('over_usage')) return 'warning';
-  if (type === 'daily_battery_soc') return 'warning';
-  if (category === 'system' || type === 'test') return 'info';
+  if (type === 'daily_unfavorable_weather' || type === 'solar_soiling') return 'warning';
+  if (type === 'diesel_entry_reminder') return 'warning';
+  if (type === 'energy_usage_target') {
+    const pct = Number(payload?.pct);
+    if (Number.isFinite(pct) && pct >= 100) return 'critical';
+    if (Number.isFinite(pct) && pct >= 80) return 'warning';
+    return 'info';
+  }
+  if (category === 'operations' || type === 'test') return 'info';
   return 'info';
 }
 
@@ -89,7 +123,7 @@ export function mapApiNotificationToAlert(item: {
     body: item.body,
     branchName: item.branch_name?.trim() || 'Wyre EMS',
     category: parseAlertCategory(item.category),
-    severity: inferAlertSeverity(item.type, item.category),
+    severity: inferAlertSeverity(item.type, item.category, item.payload),
     createdAt: item.created_at,
     read: item.is_read,
     type: item.type,
@@ -110,6 +144,9 @@ export function parseAlertSeverity(value: unknown): AlertSeverity {
 export function filterAlerts(alerts: WyreAlert[], filter: AlertFilter): WyreAlert[] {
   if (filter === 'unread') {
     return alerts.filter((alert) => !alert.read);
+  }
+  if (filter !== 'all') {
+    return alerts.filter((alert) => alert.category === filter);
   }
   return alerts;
 }

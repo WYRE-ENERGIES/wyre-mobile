@@ -3,17 +3,26 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   addBatteryScheduleTime,
   addBatterySocThreshold,
+  addEnergyUsageThreshold,
   deleteBatteryScheduleTime,
   deleteBatterySocThreshold,
+  deleteEnergyUsageThreshold,
   fetchBatteryNotificationConfig,
   fetchCapacityThreshold,
+  fetchDieselReminderConfig,
+  fetchEnergyUsageConfig,
   notificationSettingsError,
   updateBatteryNotificationConfig,
   updateCapacityThreshold,
+  updateDieselReminderConfig,
+  updateEnergyUsageConfig,
   type BatteryNotificationConfig,
   type BatterySocThreshold,
   type BatteryThresholdOperator,
   type CapacityThresholdConfig,
+  type DieselReminderConfig,
+  type EnergyUsageNotificationConfig,
+  type EnergyUsageThreshold,
   type NotificationScheduleTime,
 } from '@/lib/notification-settings-api';
 
@@ -28,8 +37,14 @@ function availabilityFromError(error: unknown): SettingsAvailability {
 
 export function useNotificationSettings(branchId: number | null) {
   const [batteryConfig, setBatteryConfig] = useState<BatteryNotificationConfig | null>(null);
+  const [energyConfig, setEnergyConfig] = useState<EnergyUsageNotificationConfig | null>(null);
+  const [dieselConfig, setDieselConfig] = useState<DieselReminderConfig | null>(null);
   const [capacityConfig, setCapacityConfig] = useState<CapacityThresholdConfig | null>(null);
   const [batteryAvailability, setBatteryAvailability] =
+    useState<SettingsAvailability>('unknown');
+  const [energyAvailability, setEnergyAvailability] =
+    useState<SettingsAvailability>('unknown');
+  const [dieselAvailability, setDieselAvailability] =
     useState<SettingsAvailability>('unknown');
   const [capacityAvailability, setCapacityAvailability] =
     useState<SettingsAvailability>('unknown');
@@ -48,30 +63,33 @@ export function useNotificationSettings(branchId: number | null) {
       else setLoading(true);
       setError(null);
 
-      const [batteryResult, capacityResult] = await Promise.allSettled([
+      const [batteryResult, energyResult, dieselResult, capacityResult] = await Promise.allSettled([
         fetchBatteryNotificationConfig(branchId),
+        fetchEnergyUsageConfig(branchId),
+        fetchDieselReminderConfig(branchId),
         fetchCapacityThreshold(branchId),
       ]);
 
-      if (batteryResult.status === 'fulfilled') {
-        setBatteryConfig(batteryResult.value);
-        setBatteryAvailability('available');
-      } else {
-        setBatteryConfig(null);
-        setBatteryAvailability(availabilityFromError(batteryResult.reason));
-        const parsed = notificationSettingsError(batteryResult.reason);
+      const applySettled = <T,>(
+        result: PromiseSettledResult<T>,
+        setValue: (value: T | null) => void,
+        setAvailability: (value: SettingsAvailability) => void,
+      ) => {
+        if (result.status === 'fulfilled') {
+          setValue(result.value);
+          setAvailability('available');
+          return;
+        }
+        setValue(null);
+        setAvailability(availabilityFromError(result.reason));
+        const parsed = notificationSettingsError(result.reason);
         if (parsed.status !== 400 && parsed.status !== 403) setError(parsed.message);
-      }
+      };
 
-      if (capacityResult.status === 'fulfilled') {
-        setCapacityConfig(capacityResult.value);
-        setCapacityAvailability('available');
-      } else {
-        setCapacityConfig(null);
-        setCapacityAvailability(availabilityFromError(capacityResult.reason));
-        const parsed = notificationSettingsError(capacityResult.reason);
-        if (parsed.status !== 400 && parsed.status !== 403) setError(parsed.message);
-      }
+      applySettled(batteryResult, setBatteryConfig, setBatteryAvailability);
+      applySettled(energyResult, setEnergyConfig, setEnergyAvailability);
+      applySettled(dieselResult, setDieselConfig, setDieselAvailability);
+      applySettled(capacityResult, setCapacityConfig, setCapacityAvailability);
 
       setLoading(false);
       setRefreshing(false);
@@ -213,6 +231,87 @@ export function useNotificationSettings(branchId: number | null) {
     [branchId, mutate],
   );
 
+  const updateEnergy = useCallback(
+    async (
+      patch: Partial<
+        Pick<
+          EnergyUsageNotificationConfig,
+          'is_enabled' | 'push_enabled' | 'email_enabled' | 'target_kwh'
+        >
+      >,
+    ) => {
+      if (!branchId) return false;
+      return mutate(
+        'energy-config',
+        () => updateEnergyUsageConfig(branchId, patch),
+        setEnergyConfig,
+      );
+    },
+    [branchId, mutate],
+  );
+
+  const addEnergyThreshold = useCallback(
+    async (value: number) => {
+      if (!branchId) return false;
+      return mutate(
+        'add-energy-threshold',
+        () => addEnergyUsageThreshold(branchId, { operator: 'gte', value }),
+        (created: EnergyUsageThreshold) =>
+          setEnergyConfig((current) =>
+            current
+              ? {
+                  ...current,
+                  thresholds: [
+                    ...current.thresholds.filter((item) => item.id !== created.id),
+                    created,
+                  ].sort((a, b) => a.value - b.value),
+                }
+              : current,
+          ),
+      );
+    },
+    [branchId, mutate],
+  );
+
+  const removeEnergyThreshold = useCallback(
+    async (thresholdId: number) => {
+      if (!branchId) return false;
+      return mutate(
+        `energy-threshold-${thresholdId}`,
+        async () => {
+          await deleteEnergyUsageThreshold(branchId, thresholdId);
+          return thresholdId;
+        },
+        (deletedId: number) =>
+          setEnergyConfig((current) =>
+            current
+              ? {
+                  ...current,
+                  thresholds: current.thresholds.filter(
+                    (item) => item.id !== deletedId,
+                  ),
+                }
+              : current,
+          ),
+      );
+    },
+    [branchId, mutate],
+  );
+
+  const updateDiesel = useCallback(
+    async (
+      patch: Partial<Pick<DieselReminderConfig, 'is_enabled' | 'push_enabled' | 'email_enabled'>>,
+    ) => {
+      if (!branchId) return false;
+      return mutate(
+        'diesel-config',
+        () => updateDieselReminderConfig(branchId, patch),
+        setDieselConfig,
+      );
+    },
+    [branchId, mutate],
+  );
+
   const updateCapacity = useCallback(
     async (
       patch: Partial<Pick<CapacityThresholdConfig, 'threshold_pct' | 'enabled'>>,
@@ -229,8 +328,12 @@ export function useNotificationSettings(branchId: number | null) {
 
   return {
     batteryConfig,
+    energyConfig,
+    dieselConfig,
     capacityConfig,
     batteryAvailability,
+    energyAvailability,
+    dieselAvailability,
     capacityAvailability,
     loading,
     refreshing,
@@ -242,6 +345,10 @@ export function useNotificationSettings(branchId: number | null) {
     removeTime,
     addThreshold,
     removeThreshold,
+    updateEnergy,
+    addEnergyThreshold,
+    removeEnergyThreshold,
+    updateDiesel,
     updateCapacity,
   };
 }

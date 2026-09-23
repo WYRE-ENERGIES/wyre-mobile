@@ -20,29 +20,61 @@ type SourcesGridProps = {
   selected: YieldTabKey;
   onSelect: (key: YieldTabKey) => void;
   onSeeMore: () => void;
+  gridStatus?: 'ON' | 'OFF';
 };
 
-export function SourcesGrid({ data, selected, onSelect, onSeeMore }: SourcesGridProps) {
+function GridStatusPill({ status }: { status: 'ON' | 'OFF' }) {
+  const on = status === 'ON';
+  return (
+    <View
+      style={[
+        styles.statusPill,
+        { backgroundColor: on ? 'rgba(34,197,94,0.16)' : 'rgba(239,68,68,0.14)' },
+      ]}>
+      <View style={[styles.statusDot, { backgroundColor: on ? '#22C55E' : '#EF4444' }]} />
+      <Text style={[styles.statusText, { color: on ? '#16A34A' : '#DC2626' }]}>{status}</Text>
+    </View>
+  );
+}
+
+export function SourcesGrid({
+  data,
+  selected,
+  onSelect,
+  onSeeMore,
+  gridStatus,
+}: SourcesGridProps) {
   const { colors, isDark } = useAppTheme();
   const linkColor = isDark ? '#A855F7' : colors.accent;
 
   return (
     <View style={styles.section}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.textOnPage }]}>Sources</Text>
+        <View style={styles.titleRow}>
+          <Text style={[styles.title, { color: colors.textOnPage }]}>Sources</Text>
+          <View style={[styles.todayPill, { borderColor: colors.accentMuted, borderWidth: 1 }]}>
+            <Text style={[styles.todayText, { color: colors.icon }]}>Today</Text>
+          </View>
+        </View>
         <Pressable onPress={onSeeMore} hitSlop={8}>
           <Text style={[styles.link, { color: linkColor }]}>View details</Text>
         </Pressable>
       </View>
       <View style={styles.grid}>
         {YIELD_TABS.map((tab) => {
-          const active = tab.key === selected;
-          const today = data[tab.key].today;
+          const showGridStatus = tab.key === 'grid' && (gridStatus === 'ON' || gridStatus === 'OFF');
+          const batteryToday = tab.key === 'battery' ? data.battery.today : null;
+          const energyToday = tab.key === 'battery' ? null : data[tab.key].today;
           return (
             <Pressable
               key={tab.key}
               accessibilityRole="button"
-              accessibilityLabel={`View ${tab.label} energy details`}
+              accessibilityState={{ selected: tab.key === selected }}
+              accessibilityLabel={
+                showGridStatus
+                  ? `View ${tab.label} energy details, grid ${gridStatus}`
+                  : `View ${tab.label} energy details`
+              }
               onPress={() => {
                 onSelect(tab.key);
                 onSeeMore();
@@ -50,11 +82,7 @@ export function SourcesGrid({ data, selected, onSelect, onSeeMore }: SourcesGrid
               style={[
                 styles.card,
                 {
-                  backgroundColor: isDark
-                    ? colors.surface
-                    : active
-                      ? colors.accentMuted
-                      : colors.surface,
+                  backgroundColor: colors.surface,
                 },
               ]}>
               <View style={styles.cardHeader}>
@@ -72,23 +100,40 @@ export function SourcesGrid({ data, selected, onSelect, onSeeMore }: SourcesGrid
                 <Text style={[styles.cardLabel, { color: colors.textOnCard }]}>
                   {tab.label}
                 </Text>
+                {showGridStatus ? <GridStatusPill status={gridStatus} /> : null}
               </View>
-              <Text
-                style={[
-                  styles.cardCost,
-                  { color: colors.textOnCard },
-                ]}>
-                {formatNaira(today.cost)}
-              </Text>
-              <Text
-                style={[
-                  styles.cardKwh,
-                  {
-                    color: colors.textOnCardSecondary,
-                  },
-                ]}>
-                {formatKwh(today.kwh, 0)}
-              </Text>
+              {batteryToday ? (
+                <View style={styles.batteryMetrics}>
+                  <View style={styles.batteryMetric}>
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.batteryValue, { color: colors.textOnCard }]}>
+                      {formatKwh(batteryToday.charge_kwh, 0)}
+                    </Text>
+                    <Text style={[styles.batteryLabel, { color: colors.success }]}>Charged</Text>
+                  </View>
+                  <View style={[styles.batterySplit, { backgroundColor: colors.border }]} />
+                  <View style={styles.batteryMetric}>
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.batteryValue, { color: colors.textOnCard }]}>
+                      {formatKwh(batteryToday.discharge_kwh, 0)}
+                    </Text>
+                    <Text style={[styles.batteryLabel, { color: colors.textOnCardSecondary }]}>
+                      Discharged
+                    </Text>
+                  </View>
+                </View>
+              ) : energyToday ? (
+                <>
+                  <Text style={[styles.cardCost, { color: colors.textOnCard }]}>
+                    {formatNaira(energyToday.cost)}
+                  </Text>
+                  <Text style={[styles.cardKwh, { color: colors.textOnCardSecondary }]}>
+                    {formatKwh(energyToday.kwh, 0)}
+                  </Text>
+                </>
+              ) : null}
             </Pressable>
           );
         })}
@@ -107,9 +152,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
+  },
   title: {
     fontSize: 27,
     fontWeight: '800',
+  },
+  todayPill: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  todayText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   link: {
     fontSize: 14,
@@ -145,12 +206,54 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
   cardCost: {
     fontSize: 20,
     fontWeight: '800',
   },
   cardKwh: {
     fontSize: 16,
+    fontWeight: '600',
+  },
+  batteryMetrics: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 2,
+  },
+  batteryMetric: {
+    flex: 1,
+    gap: 3,
+  },
+  batterySplit: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    marginVertical: 2,
+  },
+  batteryValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  batteryLabel: {
+    fontSize: 11,
     fontWeight: '600',
   },
 });

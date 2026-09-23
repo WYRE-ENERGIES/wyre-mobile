@@ -191,6 +191,14 @@ export async function saveNotificationToInbox(input: SaveNotificationInput): Pro
     createdAt: input.createdAt ?? new Date().toISOString(),
     read: input.read ?? false,
     type: typeof data.type === 'string' ? data.type : undefined,
+    action: typeof data.action === 'string' ? data.action : null,
+    destination: typeof data.destination === 'string' ? data.destination : null,
+    branchId:
+      typeof data.branch_id === 'number'
+        ? data.branch_id
+        : typeof data.branch_id === 'string'
+          ? Number(data.branch_id) || null
+          : null,
   };
 
   const next = pruneExpired([alert, ...existing]);

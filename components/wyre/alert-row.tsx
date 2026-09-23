@@ -17,12 +17,13 @@ type AlertRowProps = {
 };
 
 const CATEGORY_ICONS = {
-  generation: 'bolt.fill',
-  inverter: 'power',
-  battery: 'battery.25',
-  weather: 'cloud',
-  capacity: 'gauge.with.dots.needle.33percent',
-  maintenance: 'wrench.and.screwdriver.fill',
+  energy: 'bolt.fill',
+  battery: 'battery.100.bolt',
+  solar: 'sun.max.fill',
+  diesel: 'fuelpump.fill',
+  power_quality: 'powerplug.fill',
+  operations: 'wrench.and.screwdriver.fill',
+  environment: 'leaf.fill',
 } as const satisfies Record<AlertCategory, string>;
 
 const SEVERITY_COLOR: Record<AlertSeverity, string> = {

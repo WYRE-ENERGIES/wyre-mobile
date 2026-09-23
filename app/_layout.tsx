@@ -140,6 +140,13 @@ function RootNavigator() {
             }}
           />
           <Stack.Screen
+            name="diesel-entry"
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
             name="notification/[id]"
             options={{
               presentation: 'card',

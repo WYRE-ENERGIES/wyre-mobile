@@ -5,10 +5,10 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { DetailSheet } from '@/components/wyre/detail-sheet';
 import { TodayEnergyChart } from '@/components/solar/today-energy-chart';
 import { useAppTheme } from '@/context/theme-context';
-import { useConsumptionChart } from '@/hooks/use-consumption-chart';
+import { useHourlyChart } from '@/hooks/use-consumption-chart';
 import { formatKwh, formatNaira } from '@/lib/format';
-import type { SolarYield, YieldTab, YieldTabKey } from '@/lib/solar-types';
-import { YIELD_PERIOD_LABELS, YIELD_TABS } from '@/lib/solar-types';
+import type { BatteryYieldPeriod, EnergyYieldPeriod, SolarYield, YieldPeriodKey, YieldTabKey } from '@/lib/solar-types';
+import { YIELD_PERIOD_KEYS, YIELD_PERIOD_LABELS, YIELD_TABS } from '@/lib/solar-types';
 
 type SourcesDetailSheetProps = {
   visible: boolean;
@@ -17,8 +17,6 @@ type SourcesDetailSheetProps = {
   yieldData: SolarYield | null;
   branchId: number;
 };
-
-const PERIODS: (keyof YieldTab)[] = ['today', 'monthly', 'total'];
 
 const SOURCE_ICONS = {
   generation: 'sun.max.fill',
@@ -36,10 +34,108 @@ const SOURCE_COLORS: Record<YieldTabKey, string> = {
 
 const SOURCE_DESCRIPTIONS: Record<YieldTabKey, string> = {
   generation: 'Energy produced by your solar panels',
-  battery: 'Energy stored and supplied by your battery',
+  battery: 'Energy charged into and discharged from your battery',
   load: 'Energy consumed by your home or site',
   grid: 'Energy imported from the utility grid',
 };
+
+function EnergyPeriodRows({
+  periods,
+  labels,
+}: {
+  periods: Record<YieldPeriodKey, EnergyYieldPeriod>;
+  labels: Record<YieldPeriodKey, string>;
+}) {
+  const { colors } = useAppTheme();
+  return (
+    <View style={[styles.breakdown, { backgroundColor: colors.surfaceMuted }]}>
+      {YIELD_PERIOD_KEYS.map((period, index) => (
+        <View key={period}>
+          <View style={styles.row}>
+            <View style={styles.period}>
+              <Text style={[styles.label, { color: colors.textOnCard }]}>{labels[period]}</Text>
+              <Text style={[styles.valueHint, { color: colors.textOnCardSecondary }]}>
+                {periods[period].period_label ?? 'Estimated value'}
+              </Text>
+            </View>
+            <View style={styles.values}>
+              <Text style={[styles.kwh, { color: colors.textOnCard }]}>
+                {formatKwh(periods[period].kwh, 1)}
+              </Text>
+              <Text style={[styles.cost, { color: colors.success }]}>
+                {formatNaira(periods[period].cost, 2)}
+              </Text>
+            </View>
+          </View>
+          {index < YIELD_PERIOD_KEYS.length - 1 ? (
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function BatteryFlowRow({
+  label,
+  kwh,
+  cost,
+}: {
+  label: string;
+  kwh: number;
+  cost: number;
+}) {
+  const { colors } = useAppTheme();
+  return (
+    <View style={styles.batteryFlow}>
+      <Text style={[styles.batteryFlowLabel, { color: colors.textOnCardSecondary }]}>{label}</Text>
+      <View style={styles.values}>
+        <Text style={[styles.kwh, { color: colors.textOnCard }]}>{formatKwh(kwh, 1)}</Text>
+        <Text style={[styles.cost, { color: colors.success }]}>{formatNaira(cost, 2)}</Text>
+      </View>
+    </View>
+  );
+}
+
+function BatteryPeriodRows({
+  periods,
+  labels,
+}: {
+  periods: Record<YieldPeriodKey, BatteryYieldPeriod>;
+  labels: Record<YieldPeriodKey, string>;
+}) {
+  const { colors } = useAppTheme();
+  return (
+    <View style={[styles.breakdown, { backgroundColor: colors.surfaceMuted }]}>
+      {YIELD_PERIOD_KEYS.map((period, index) => {
+        const item = periods[period];
+        return (
+          <View key={period}>
+            <View style={styles.batteryPeriod}>
+              <View style={styles.period}>
+                <Text style={[styles.label, { color: colors.textOnCard }]}>{labels[period]}</Text>
+                {item.period_label ? (
+                  <Text style={[styles.valueHint, { color: colors.textOnCardSecondary }]}>
+                    {item.period_label}
+                  </Text>
+                ) : null}
+              </View>
+              <BatteryFlowRow label="Charged" kwh={item.charge_kwh} cost={item.charge_cost} />
+              <BatteryFlowRow
+                label="Discharged"
+                kwh={item.discharge_kwh}
+                cost={item.discharge_cost}
+              />
+            </View>
+            {index < YIELD_PERIOD_KEYS.length - 1 ? (
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            ) : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
 
 export function SourcesDetailSheet({
   visible,
@@ -50,8 +146,7 @@ export function SourcesDetailSheet({
 }: SourcesDetailSheetProps) {
   const { colors, isDark } = useAppTheme();
   const [activeSource, setActiveSource] = useState<YieldTabKey>(selected);
-  const chart = useConsumptionChart(visible ? branchId : null);
-  const tab = yieldData?.[activeSource];
+  const chart = useHourlyChart(branchId, activeSource, visible);
   const labels = YIELD_PERIOD_LABELS[activeSource];
   const activeLabel = YIELD_TABS.find((item) => item.key === activeSource)?.label ?? 'Source';
 
@@ -125,41 +220,11 @@ export function SourcesDetailSheet({
         </View>
       </View>
 
-      {tab
-        ? (
-            <View
-              style={[
-                styles.breakdown,
-                { backgroundColor: colors.surfaceMuted },
-              ]}>
-              {PERIODS.map((period, index) => (
-                <View key={period}>
-                  <View style={styles.row}>
-                    <View style={styles.period}>
-                      <Text style={[styles.label, { color: colors.textOnCard }]}>
-                        {labels[period]}
-                      </Text>
-                      <Text style={[styles.valueHint, { color: colors.textOnCardSecondary }]}>
-                        Estimated value
-                      </Text>
-                    </View>
-                    <View style={styles.values}>
-                      <Text style={[styles.kwh, { color: colors.textOnCard }]}>
-                        {formatKwh(tab[period].kwh, 1)}
-                      </Text>
-                      <Text style={[styles.cost, { color: colors.success }]}>
-                        {formatNaira(tab[period].cost, 2)}
-                      </Text>
-                    </View>
-                  </View>
-                  {index < PERIODS.length - 1 ? (
-                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          )
-        : null}
+      {yieldData && activeSource === 'battery' ? (
+        <BatteryPeriodRows periods={yieldData.battery} labels={labels} />
+      ) : yieldData && activeSource !== 'battery' ? (
+        <EnergyPeriodRows periods={yieldData[activeSource]} labels={labels} />
+      ) : null}
 
       <Text style={[styles.chartTitle, { color: colors.textOnCard }]}>
         Today’s {activeLabel.toLowerCase()} pattern
@@ -172,7 +237,7 @@ export function SourcesDetailSheet({
           styles.chartCard,
           { backgroundColor: colors.surfaceMuted },
         ]}>
-        <TodayEnergyChart data={chart.data} source={activeSource} />
+        <TodayEnergyChart data={chart.data} source={activeSource} loading={chart.loading} />
       </View>
     </DetailSheet>
   );
@@ -255,6 +320,21 @@ const styles = StyleSheet.create({
   values: {
     alignItems: 'flex-end',
     gap: 4,
+  },
+  batteryPeriod: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  batteryFlow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  batteryFlowLabel: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   kwh: {
     fontSize: 16,

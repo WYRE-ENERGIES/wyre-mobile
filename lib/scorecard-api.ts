@@ -1,4 +1,4 @@
-import type { AxiosResponse } from 'axios';
+import { isAxiosError, type AxiosResponse } from 'axios';
 
 import { APIService } from '@/config/api/apiServices';
 
@@ -9,18 +9,19 @@ function unwrapData<T>(response: AxiosResponse): T {
   return body as T;
 }
 
-/** Matches wyre-dashboard scorecard date path segment. */
-export function formatScorecardDateRange(start: Date, end: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const fmt = (d: Date) =>
-    `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  return `${fmt(start)}/${fmt(end)}`;
+function pad(n: number) {
+  return String(n).padStart(2, '0');
 }
 
-export function defaultScorecardDateRange(): string {
+/** Matches wyre-dashboard: `DD-MM-YYYY HH:mm`. */
+export function formatScorecardDate(date: Date): string {
+  return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function defaultScorecardDates(): { start: string; end: string } {
   const end = new Date();
   const start = new Date(end.getFullYear(), end.getMonth(), 1, 0, 0, 0, 0);
-  return formatScorecardDateRange(start, end);
+  return { start: formatScorecardDate(start), end: formatScorecardDate(end) };
 }
 
 export type ScorecardBranchPayload = {
@@ -33,54 +34,94 @@ export type ScorecardBranchPayload = {
   [key: string]: unknown;
 };
 
-/** Encode spaces in date path segments — matches backend expectations. */
-export function encodeScorecardDateRange(dateRange: string): string {
-  return dateRange.replace(/ /g, '%20');
-}
-
+/**
+ * Do not pre-encode spaces. The web dashboard sends the date as
+ * `01-09-2026 00:00/15-09-2026 11:17` and lets the HTTP client encode once.
+ * Replacing spaces with `%20` first is re-encoded to `%2520` in React Native,
+ * which 500s the backend.
+ */
 async function fetchScorecardEndpoint(
   path: string,
   branchId: number,
-  dateRange: string,
+  start: string,
+  end: string,
 ): Promise<ScorecardBranchPayload> {
-  const encodedRange = encodeScorecardDateRange(dateRange);
-  const response = await APIService.get(`scorecard/${path}/${branchId}/${encodedRange}/`);
+  const response = await APIService.get(`scorecard/${path}/${branchId}/${start}/${end}/`);
   return unwrapData<ScorecardBranchPayload>(response);
 }
 
-export async function fetchBaselineEnergy(branchId: number, dateRange: string) {
-  return fetchScorecardEndpoint('baseline-energy', branchId, dateRange);
+const SCORECARD_PATHS = [
+  { path: 'baseline-energy', key: 'baseline' },
+  { path: 'peak-to-avg-power-ratio', key: 'papr' },
+  { path: 'carbon-emissions', key: 'carbon' },
+  { path: 'generator-size-efficiency', key: 'gen-size' },
+  { path: 'fuel-consumption', key: 'fuel' },
+  { path: 'operating-time', key: 'operating' },
+] as const;
+
+export type ScorecardDashboard = {
+  baseline: ScorecardBranchPayload;
+  papr: ScorecardBranchPayload;
+  carbon: ScorecardBranchPayload;
+  genSize: ScorecardBranchPayload;
+  fuel: ScorecardBranchPayload;
+  operating: ScorecardBranchPayload;
+};
+
+export function scorecardRequestError(error: unknown): string {
+  if (isAxiosError(error)) {
+    const status = error.response?.status;
+    const body = error.response?.data;
+    if (body && typeof body === 'object') {
+      const record = body as Record<string, unknown>;
+      if (typeof record.message === 'string' && record.message.trim()) {
+        return record.message;
+      }
+      if (typeof record.detail === 'string' && record.detail.trim()) {
+        return record.detail;
+      }
+    }
+    if (status === 403) return "You don't have permission to view this branch.";
+    if (status === 404) return 'Scorecard data was not found for this branch.';
+    if (status === 401) return 'Please sign in again to view the scorecard.';
+    if (status === 500) return 'The scorecard service is unavailable right now.';
+  }
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return 'Unable to load scorecard.';
 }
 
-export async function fetchPeakToAvgPowerRatio(branchId: number, dateRange: string) {
-  return fetchScorecardEndpoint('peak-to-avg-power-ratio', branchId, dateRange);
-}
+export async function fetchScorecardDashboard(branchId: number): Promise<{
+  data: ScorecardDashboard;
+  failedKeys: string[];
+}> {
+  const { start, end } = defaultScorecardDates();
+  const results = await Promise.allSettled(
+    SCORECARD_PATHS.map((item) => fetchScorecardEndpoint(item.path, branchId, start, end)),
+  );
 
-export async function fetchCarbonEmissions(branchId: number, dateRange: string) {
-  return fetchScorecardEndpoint('carbon-emissions', branchId, dateRange);
-}
+  const failedKeys = SCORECARD_PATHS.filter((_, index) => results[index].status === 'rejected').map(
+    (item) => item.key,
+  );
 
-export async function fetchGeneratorSizeEfficiency(branchId: number, dateRange: string) {
-  return fetchScorecardEndpoint('generator-size-efficiency', branchId, dateRange);
-}
+  if (failedKeys.length === results.length) {
+    const first = results[0];
+    throw first.status === 'rejected' ? first.reason : new Error('Unable to load scorecard.');
+  }
 
-export async function fetchFuelConsumption(branchId: number, dateRange: string) {
-  return fetchScorecardEndpoint('fuel-consumption', branchId, dateRange);
-}
+  const valueAt = (index: number): ScorecardBranchPayload => {
+    const result = results[index];
+    return result.status === 'fulfilled' ? result.value : {};
+  };
 
-export async function fetchOperatingTime(branchId: number, dateRange: string) {
-  return fetchScorecardEndpoint('operating-time', branchId, dateRange);
-}
-
-export async function fetchScorecardDashboard(branchId: number, dateRange: string) {
-  const [baseline, papr, carbon, genSize, fuel, operating] = await Promise.all([
-    fetchBaselineEnergy(branchId, dateRange),
-    fetchPeakToAvgPowerRatio(branchId, dateRange),
-    fetchCarbonEmissions(branchId, dateRange),
-    fetchGeneratorSizeEfficiency(branchId, dateRange),
-    fetchFuelConsumption(branchId, dateRange),
-    fetchOperatingTime(branchId, dateRange),
-  ]);
-
-  return { baseline, papr, carbon, genSize, fuel, operating };
+  return {
+    data: {
+      baseline: valueAt(0),
+      papr: valueAt(1),
+      carbon: valueAt(2),
+      genSize: valueAt(3),
+      fuel: valueAt(4),
+      operating: valueAt(5),
+    },
+    failedKeys,
+  };
 }

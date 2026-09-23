@@ -33,6 +33,7 @@ export function SolarHomeHeader({ siteName }: SolarHomeHeaderProps) {
         <Text style={[styles.site, { color: colors.textOnPage }]} numberOfLines={1}>
           {siteName}
         </Text>
+        <Text style={[styles.period, { color: colors.textOnPageMuted }]}>Today’s overview</Text>
       </View>
       <NotificationBellButton softBackground />
     </View>
@@ -59,6 +60,10 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.4,
+  },
+  period: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   pressed: {
     opacity: 0.72,

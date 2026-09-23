@@ -66,6 +66,7 @@ export function DieselOverviewContent() {
         year={year}
         showTracker={hasSolar && !isSolarCustomer(userData)}
         onOpenTracker={() => router.push('/tracker-details')}
+        onAddEntry={() => router.push('/diesel-entry')}
       />
       {loading && !data ? (
         <View style={styles.centered}>

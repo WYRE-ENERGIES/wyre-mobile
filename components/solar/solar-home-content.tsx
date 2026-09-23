@@ -137,6 +137,7 @@ export function SolarHomeContent() {
             selected={selected}
             onSelect={setSelected}
             onSeeMore={() => setSeeMoreOpen(true)}
+            gridStatus={siteStatus?.grid?.status}
           />
         ) : null}
 

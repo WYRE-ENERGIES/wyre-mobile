@@ -17,10 +17,10 @@ export function ScorecardDoughnutChart({
   centerPrimary,
   centerSecondary,
   accentColor = WyreColors.purple,
-  size = 148,
+  size = 96,
 }: ScorecardDoughnutChartProps) {
   const { colors } = useAppTheme();
-  const strokeWidth = size <= 120 ? 16 : 20;
+  const strokeWidth = size <= 100 ? 12 : 16;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const total = segments.reduce((sum, segment) => sum + segment.value, 0) || 1;
@@ -56,7 +56,7 @@ export function ScorecardDoughnutChart({
         <Text
           style={[
             styles.centerPrimary,
-            { fontSize: size <= 120 ? 18 : 28, color: accentColor },
+            { fontSize: size <= 100 ? 16 : 22, color: accentColor },
           ]}>
           {centerPrimary}
         </Text>
@@ -64,7 +64,7 @@ export function ScorecardDoughnutChart({
           <Text
             style={[
               styles.centerSecondary,
-              { fontSize: size <= 120 ? 11 : 13, color: colors.textOnCardSecondary },
+              { fontSize: size <= 100 ? 10 : 12, color: colors.textOnCardSecondary },
             ]}>
             {centerSecondary}
           </Text>
@@ -78,7 +78,6 @@ const styles = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
   },
   center: {
     ...StyleSheet.absoluteFillObject,

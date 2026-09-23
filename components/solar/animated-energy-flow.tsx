@@ -1,40 +1,74 @@
 import { useEffect } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedProps,
-  useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Path } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Ellipse,
+  G,
+  Line,
+  Path,
+  Rect,
+  Text as SvgText,
+} from 'react-native-svg';
 
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/context/theme-context';
 import { formatKw, formatKwp } from '@/lib/format';
 import type { SiteNode, SolarSiteStatus } from '@/lib/solar-types';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-type FlowDirection = 'forward' | 'reverse' | 'idle';
-type FlowIcon =
-  | 'battery.100.bolt'
-  | 'powerplug.fill'
-  | 'house.fill'
-  | 'fuelpump.fill'
-  | 'sun.max.fill';
+const VB_W = 400;
+const VB_H = 456;
+const NODE_R = 24;
+const INV = { x: 200, y: 214 };
 
-type NodeLayout = {
+function flowPalette(isDark: boolean) {
+  if (isDark) {
+    return {
+      solar: '#C084FC',
+      grid: '#60A5FA',
+      gridOff: '#94A3B8',
+      battery: '#34D399',
+      usage: '#FB7185',
+      generator: '#FB923C',
+      productionFill: '#F59E0B',
+      productionIcon: '#FFF7ED',
+    };
+  }
+  return {
+    solar: '#7C3AED',
+    grid: '#2563EB',
+    gridOff: '#64748B',
+    battery: '#16A34A',
+    usage: '#E11D48',
+    generator: '#EA580C',
+    productionFill: '#FACC15',
+    productionIcon: '#92400E',
+  };
+}
+
+type FlowDirection = 'forward' | 'reverse' | 'idle';
+type GlyphKind = 'solar' | 'grid' | 'generator' | 'storage' | 'facility';
+
+type FlowNode = {
   key: string;
+  kind: GlyphKind;
   x: number;
   y: number;
   label: string;
   value: string;
   detail: string;
   color: string;
-  icon: FlowIcon;
   direction: FlowDirection;
+  labelAbove: boolean;
+  badge?: 'ON' | 'OFF';
 };
 
 function nodeDirection(
@@ -48,120 +82,307 @@ function nodeDirection(
   return fallback;
 }
 
-function FlowPath({
-  path,
+function FlowComet({
+  d,
   color,
   direction,
+  duration,
+  delay = 0,
 }: {
-  path: string;
+  d: string;
   color: string;
   direction: FlowDirection;
+  duration: number;
+  delay?: number;
 }) {
   const progress = useSharedValue(0);
+  const active = direction !== 'idle';
 
   useEffect(() => {
     progress.value = 0;
-    if (direction !== 'idle') {
-      progress.value = withRepeat(
-        withTiming(1, { duration: 1450, easing: Easing.linear }),
-        -1,
-        false,
-      );
-    }
-  }, [direction, progress]);
+    progress.value = withDelay(
+      delay,
+      withRepeat(withTiming(1, { duration, easing: Easing.linear }), -1, false),
+    );
+  }, [delay, duration, progress]);
 
   const animatedProps = useAnimatedProps(() => ({
-    strokeDashoffset: (direction === 'reverse' ? 1 : -1) * progress.value * 44,
+    strokeDashoffset: (direction === 'reverse' ? 1 : -1) * progress.value * 280,
   }));
 
   return (
     <>
-      <Path
-        d={path}
+      <Path d={d} fill="none" stroke={color} strokeWidth={2} opacity={0.22} strokeLinecap="round" />
+      <AnimatedPath
+        animatedProps={animatedProps}
+        d={d}
         fill="none"
-        stroke="rgba(148,163,184,0.2)"
-        strokeWidth={2}
+        stroke={color}
+        strokeWidth={active ? 3 : 2.4}
+        strokeDasharray="16 264"
         strokeLinecap="round"
+        opacity={active ? 1 : 0.4}
       />
-      {direction !== 'idle' ? (
-        <AnimatedPath
-          animatedProps={animatedProps}
-          d={path}
-          fill="none"
-          stroke={color}
-          strokeWidth={3}
-          strokeDasharray="8 14"
-          strokeLinecap="round"
-        />
-      ) : null}
     </>
   );
 }
 
-function FlowNode({
-  node,
-  scale,
-}: {
-  node: NodeLayout;
-  scale: number;
-}) {
-  const { colors } = useAppTheme();
-  const iconSize = 28 * scale;
-
+function SolarGlyph({ color }: { color: string }) {
   return (
-    <View
-      pointerEvents="none"
-      style={[
-        styles.node,
-        {
-          left: node.x * scale - 45,
-          top: node.y * scale - iconSize / 2,
-          width: 90,
-        },
-      ]}>
-      <IconSymbol name={node.icon} size={iconSize} color={node.color} />
-      <Text numberOfLines={1} style={[styles.nodeLabel, { color: colors.textOnCard }]}>
-        {node.label}
-      </Text>
-      <Text numberOfLines={1} style={[styles.nodeValue, { color: colors.textOnCardSecondary }]}>
-        {node.value}
-      </Text>
-      {node.detail !== 'Idle' ? (
-        <Text numberOfLines={1} style={[styles.nodeDetail, { color: node.color }]}>
-          {node.detail}
-        </Text>
-      ) : null}
-    </View>
+    <G>
+      <Rect x={-9} y={-8} width={8} height={7} rx={1.1} fill={color} />
+      <Rect x={1} y={-8} width={8} height={7} rx={1.1} fill={color} opacity={0.78} />
+      <Rect x={-9} y={1} width={8} height={7} rx={1.1} fill={color} opacity={0.78} />
+      <Rect x={1} y={1} width={8} height={7} rx={1.1} fill={color} opacity={0.56} />
+    </G>
   );
 }
 
-function InverterGlyph({ scale }: { scale: number }) {
+function GridGlyph({ color }: { color: string }) {
   return (
-    <View style={[styles.inverterGlyph, { transform: [{ scale }] }]}>
-      <View style={styles.inverterGlow} />
-      <View style={styles.inverterDisplay} />
-      <View style={styles.inverterLed} />
-      <View style={styles.inverterBaseLine} />
-    </View>
+    <G>
+      <Path
+        d="M0 -11 L-6.5 11 M0 -11 L6.5 11 M-4.2 0 H4.2 M-5.4 6 H5.4 M-8 -7.5 H-2.2 M2.2 -7.5 H8"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.55}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </G>
   );
+}
+
+function GeneratorGlyph({ color }: { color: string }) {
+  return (
+    <G>
+      <Rect x={-10} y={-6} width={14} height={12} rx={2.2} fill="none" stroke={color} strokeWidth={1.5} />
+      <Circle cx={-3} cy={0} r={3.2} fill="none" stroke={color} strokeWidth={1.35} />
+      <Circle cx={-3} cy={0} r={1.1} fill={color} />
+      <Rect x={4.5} y={-3.2} width={5.5} height={6.4} rx={1} fill="none" stroke={color} strokeWidth={1.35} />
+    </G>
+  );
+}
+
+function StorageGlyph({ color }: { color: string }) {
+  return (
+    <G>
+      {[-7.2, 0, 7.2].map((x) => (
+        <G key={x} transform={`translate(${x}, 0)`}>
+          <Rect x={-3.1} y={-8} width={6.2} height={16} rx={1.2} fill="none" stroke={color} strokeWidth={1.35} />
+          <Rect x={-1.5} y={-10} width={3} height={2} rx={0.6} fill={color} />
+        </G>
+      ))}
+    </G>
+  );
+}
+
+function FacilityGlyph({ color }: { color: string }) {
+  return (
+    <G>
+      <Path
+        d="M-10 9 V-1 H-3.5 V-9 H3.5 V-1 H10 V9 Z"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+      />
+      <Rect x={-2} y={3.2} width={4} height={5.8} rx={0.4} fill={color} />
+      <Rect x={-8} y={1} width={3} height={2.3} rx={0.3} fill={color} opacity={0.85} />
+      <Rect x={5} y={1} width={3} height={2.3} rx={0.3} fill={color} opacity={0.85} />
+    </G>
+  );
+}
+
+const GLYPHS = {
+  solar: SolarGlyph,
+  grid: GridGlyph,
+  generator: GeneratorGlyph,
+  storage: StorageGlyph,
+  facility: FacilityGlyph,
+} as const;
+
+function AssetNode({
+  node,
+  fill,
+  border,
+  labelColor,
+  valueColor,
+}: {
+  node: FlowNode;
+  fill: string;
+  border: string;
+  labelColor: string;
+  valueColor: string;
+}) {
+  const Glyph = GLYPHS[node.kind];
+  const labelY = node.labelAbove ? node.y - NODE_R - 22 : node.y + NODE_R + 16;
+  const valueY = node.labelAbove ? node.y - NODE_R - 8 : node.y + NODE_R + 29;
+  const detailY = node.labelAbove ? node.y - NODE_R - 34 : node.y + NODE_R + 42;
+
+  return (
+    <G>
+      <Ellipse cx={node.x} cy={node.y + 27} rx={20} ry={6} fill={node.color} opacity={0.18} />
+      <Circle cx={node.x} cy={node.y} r={NODE_R + 3} fill={node.color} opacity={0.12} />
+      <Circle cx={node.x} cy={node.y} r={NODE_R} fill={fill} stroke={node.color} strokeWidth={1.6} />
+      <Circle cx={node.x} cy={node.y} r={NODE_R - 0.8} fill="none" stroke={border} strokeWidth={0.6} />
+      <G transform={`translate(${node.x}, ${node.y})`}>
+        <Glyph color={node.color} />
+      </G>
+      {node.badge ? (
+        <G>
+          <Rect
+            x={node.x + 12}
+            y={node.y - 28}
+            width={30}
+            height={14}
+            rx={7}
+            fill={node.badge === 'ON' ? '#16A34A' : '#DC2626'}
+          />
+          <SvgText
+            x={node.x + 27}
+            y={node.y - 18}
+            fill="#FFFFFF"
+            fontSize={7}
+            fontWeight="800"
+            textAnchor="middle">
+            {node.badge}
+          </SvgText>
+        </G>
+      ) : null}
+      {node.detail && node.detail !== 'Idle' && !node.labelAbove ? (
+        <SvgText
+          x={node.x}
+          y={detailY}
+          fill={node.color}
+          fontSize={8}
+          fontWeight="700"
+          textAnchor="middle">
+          {node.detail}
+        </SvgText>
+      ) : null}
+      <SvgText
+        x={node.x}
+        y={labelY}
+        fill={labelColor}
+        fontSize={10}
+        fontWeight="700"
+        textAnchor="middle">
+        {node.label}
+      </SvgText>
+      <SvgText
+        x={node.x}
+        y={valueY}
+        fill={valueColor}
+        fontSize={8}
+        fontWeight="600"
+        textAnchor="middle">
+        {node.value}
+      </SvgText>
+    </G>
+  );
+}
+
+function Blueprint({ color }: { color: string }) {
+  const vertical = [];
+  const horizontal = [];
+  for (let x = 20; x < VB_W; x += 32) {
+    vertical.push(<Line key={`v${x}`} x1={x} y1={12} x2={x} y2={VB_H - 10} stroke={color} strokeWidth={0.7} />);
+  }
+  for (let y = 16; y < VB_H; y += 32) {
+    horizontal.push(<Line key={`h${y}`} x1={14} y1={y} x2={VB_W - 14} y2={y} stroke={color} strokeWidth={0.7} />);
+  }
+  return (
+    <G>
+      {vertical}
+      {horizontal}
+    </G>
+  );
+}
+
+function InverterGlyph({ x, y, fill, icon }: { x: number; y: number; fill: string; icon: string }) {
+  return (
+    <G transform={`translate(${x}, ${y})`}>
+      <Circle r={40} fill={fill} opacity={0.22} />
+      <Circle r={34} fill={fill} />
+      <Rect x={-16} y={-18} width={32} height={38} rx={8} fill="none" stroke={icon} strokeWidth={2.4} />
+      <Rect x={-8} y={-10} width={16} height={5} rx={2.5} fill={icon} opacity={0.85} />
+      <Rect x={-10} y={4} width={10} height={8} rx={2} fill="none" stroke={icon} strokeWidth={1.8} />
+      <Circle cx={8} cy={8} r={2.4} fill={icon} />
+      <Rect x={-12} y={15} width={24} height={2.2} rx={1} fill={icon} opacity={0.7} />
+    </G>
+  );
+}
+
+const INV_TOP = INV.y - 34;
+const INV_BOTTOM = INV.y + 34;
+
+function inboundPath(x: number, y: number, side: 'left' | 'center' | 'right') {
+  const startY = y + NODE_R;
+  const midY = INV_TOP - 28;
+  if (side === 'center') {
+    return `M ${x} ${startY} L ${INV.x} ${INV_TOP}`;
+  }
+  const endX = side === 'left' ? INV.x - 18 : INV.x + 18;
+  return `M ${x} ${startY} C ${x} ${midY}, ${endX} ${midY}, ${endX} ${INV_TOP}`;
+}
+
+function outboundPath(x: number, y: number, side: 'left' | 'right') {
+  const endY = y - NODE_R;
+  const midY = INV_BOTTOM + 28;
+  const startX = side === 'left' ? INV.x - 18 : INV.x + 18;
+  return `M ${startX} ${INV_BOTTOM} C ${startX} ${midY}, ${x} ${midY}, ${x} ${endY}`;
 }
 
 export function AnimatedEnergyFlow({ data }: { data: SolarSiteStatus }) {
   const { width } = useWindowDimensions();
-  const { colors } = useAppTheme();
-  const diagramWidth = Math.min(width - 72, 360);
-  const scale = diagramWidth / 360;
-  const inverter = { x: 180, y: 136 };
-  const solar = { x: 180, y: 24 };
-  const generatorOn = data.generator_power?.status === 'ON';
+  const { isDark } = useAppTheme();
+  const generatorOn =
+    data.generator_power?.status === 'ON' || (data.generator_power?.kw ?? 0) > 0;
   const gridOn = data.grid?.status === 'ON';
-  const outputXs = generatorOn ? [44, 135, 225, 316] : [55, 180, 305];
+  const productionActive = (data.pv?.kw ?? 0) > 0;
+  const flow = flowPalette(isDark);
+  const labelColor = isDark ? '#FFFFFF' : '#111827';
+  const valueColor = isDark ? 'rgba(255,255,255,0.72)' : '#4B5563';
+  const topY = 82;
+  const botY = 368;
+  const solarX = generatorOn ? 58 : 80;
+  const gridX = generatorOn ? 200 : 320;
+  const genX = 342;
+  const batteryX = 80;
+  const usageX = 320;
 
-  const nodes: NodeLayout[] = [
+  const nodes: FlowNode[] = [
+    {
+      key: 'solar',
+      kind: 'solar',
+      x: solarX,
+      y: topY,
+      label: 'Solar',
+      value: formatKwp(data.pv?.installed_capacity_kwp),
+      detail: productionActive ? 'Producing' : 'Idle',
+      color: flow.solar,
+      direction: productionActive ? 'forward' : 'idle',
+      labelAbove: true,
+    },
+    {
+      key: 'grid',
+      kind: 'grid',
+      x: gridX,
+      y: topY,
+      label: 'Grid',
+      value: formatKw(Math.abs(data.grid?.kw ?? 0)),
+      detail: gridOn ? 'Connected' : 'Offline',
+      color: gridOn ? flow.grid : flow.gridOff,
+      direction: gridOn ? 'forward' : 'idle',
+      labelAbove: true,
+      badge: data.grid?.status === 'ON' || data.grid?.status === 'OFF' ? data.grid.status : undefined,
+    },
     {
       key: 'battery',
-      x: outputXs[0],
-      y: 246,
+      kind: 'storage',
+      x: batteryX,
+      y: botY,
       label: 'Battery',
       value: `${Math.round(data.battery?.percentage ?? 0)}% · ${formatKw(Math.abs(data.battery?.kw ?? 0))}`,
       detail:
@@ -170,142 +391,111 @@ export function AnimatedEnergyFlow({ data }: { data: SolarSiteStatus }) {
           : data.battery?.direction === 'OUT'
             ? 'Supplying'
             : 'Idle',
-      color: '#22C55E',
-      icon: 'battery.100.bolt',
+      color: flow.battery,
       direction: nodeDirection(data.battery, 'idle'),
+      labelAbove: false,
     },
     {
-      key: 'grid',
-      x: outputXs[1],
-      y: generatorOn ? 258 : 246,
-      label: 'Grid',
-      value: formatKw(Math.abs(data.grid?.kw ?? 0)),
-      detail: gridOn ? 'Connected' : 'Offline',
-      color: gridOn ? '#60A5FA' : '#94A3B8',
-      icon: 'powerplug.fill',
-      direction:
-        !gridOn || data.grid?.direction === 'IDLE'
-          ? 'idle'
-          : data.grid?.direction === 'OUT'
-            ? 'forward'
-            : 'reverse',
-    },
-    {
-      key: 'home',
-      x: outputXs[2],
-      y: 246,
+      key: 'usage',
+      kind: 'facility',
+      x: usageX,
+      y: botY,
       label: 'Usage',
       value: formatKw(Math.abs(data.load?.kw ?? 0)),
       detail: (data.load?.kw ?? 0) > 0 ? 'Using power' : 'Idle',
-      color: '#FB7185',
-      icon: 'house.fill',
+      color: flow.usage,
       direction: nodeDirection(data.load, (data.load?.kw ?? 0) > 0 ? 'forward' : 'idle'),
+      labelAbove: false,
     },
   ];
 
   if (generatorOn) {
-    nodes.push({
+    nodes.splice(2, 0, {
       key: 'generator',
-      x: outputXs[3],
-      y: 258,
+      kind: 'generator',
+      x: genX,
+      y: topY,
       label: 'Generator',
       value: formatKw(Math.abs(data.generator_power?.kw ?? 0)),
       detail: 'Supplying',
-      color: '#F97316',
-      icon: 'fuelpump.fill',
-      direction: data.generator_power?.direction === 'IDLE' ? 'idle' : 'reverse',
+      color: flow.generator,
+      direction: data.generator_power?.direction === 'IDLE' ? 'idle' : 'forward',
+      labelAbove: true,
     });
   }
 
-  const productionActive = (data.pv?.kw ?? 0) > 0;
-  const productionPulse = useSharedValue(0);
+  const diagramWidth = Math.min(width - 56, 400);
+  const diagramHeight = diagramWidth * (VB_H / VB_W);
+  const nodeFill = isDark ? 'rgba(23, 23, 26, 0.96)' : '#FFFFFF';
+  const nodeBorder = isDark ? 'rgba(255,255,255,0.14)' : 'rgba(15, 23, 42, 0.08)';
+  const gridColor = isDark ? 'rgba(196, 160, 255, 0.08)' : 'rgba(15, 23, 42, 0.06)';
 
-  useEffect(() => {
-    productionPulse.value = productionActive
-      ? withRepeat(
-        withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.quad) }),
-        -1,
-        true,
-      )
-      : 0;
-  }, [productionActive, productionPulse]);
-
-  const productionStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + productionPulse.value * 0.035 }],
-  }));
+  const solar = nodes.find((node) => node.key === 'solar')!;
+  const grid = nodes.find((node) => node.key === 'grid')!;
+  const generator = nodes.find((node) => node.key === 'generator');
+  const battery = nodes.find((node) => node.key === 'battery')!;
+  const usage = nodes.find((node) => node.key === 'usage')!;
 
   return (
-    <View style={[styles.diagram, { width: diagramWidth, height: 320 * scale }]}>
-      <Svg
-        width={diagramWidth}
-        height={320 * scale}
-        viewBox="0 0 360 320"
-        preserveAspectRatio="xMidYMid meet">
-        <FlowPath
-          path={`M ${solar.x} 73 Q ${solar.x} 91 ${inverter.x} 105`}
-          color="#F59E0B"
-          direction={productionActive ? 'forward' : 'idle'}
+    <View
+      accessible
+      accessibilityLabel="Live energy flow from solar and grid into Wyre production, then out to battery and facility usage"
+      style={[styles.diagram, { width: diagramWidth, height: diagramHeight }]}>
+      <Svg width={diagramWidth} height={diagramHeight} viewBox={`0 0 ${VB_W} ${VB_H}`} preserveAspectRatio="xMidYMid meet">
+        <Blueprint color={gridColor} />
+
+        <FlowComet d={inboundPath(solar.x, solar.y, 'left')} color={solar.color} direction={solar.direction} duration={2400} delay={0} />
+        <FlowComet
+          d={inboundPath(grid.x, grid.y, generatorOn ? 'center' : 'right')}
+          color={grid.color}
+          direction={grid.direction}
+          duration={2600}
+          delay={450}
         />
-        {nodes.map((node) => {
-          const dx = node.x - inverter.x;
-          const dy = node.y - inverter.y;
-          const distance = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-          const ux = dx / distance;
-          const uy = dy / distance;
-          const startX = inverter.x + ux * 38;
-          const startY = inverter.y + uy * 38;
-          const endX = node.x - ux * 20;
-          const endY = node.y - uy * 20;
-          const bendX = startX + (endX - startX) * 0.54;
-          const path = `M ${startX} ${startY} Q ${bendX} ${startY} ${endX} ${endY}`;
-          return (
-            <FlowPath
-              key={node.key}
-              path={path}
-              color={node.color}
-              direction={node.direction}
-            />
-          );
-        })}
-      </Svg>
+        {generator ? (
+          <FlowComet
+            d={inboundPath(generator.x, generator.y, 'right')}
+            color={generator.color}
+            direction={generator.direction}
+            duration={2500}
+            delay={900}
+          />
+        ) : null}
+        <FlowComet d={outboundPath(battery.x, battery.y, 'left')} color={battery.color} direction={battery.direction} duration={2700} delay={1350} />
+        <FlowComet d={outboundPath(usage.x, usage.y, 'right')} color={usage.color} direction={usage.direction} duration={2550} delay={1800} />
 
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.solarNode,
-          productionStyle,
-          {
-            left: solar.x * scale - 44,
-            top: solar.y * scale - 11,
-          },
-        ]}>
-        <IconSymbol name="sun.max.fill" size={25 * scale} color="#F59E0B" />
-        <Text style={[styles.solarLabel, { color: colors.textOnCard }]}>Solar</Text>
-        <Text style={[styles.solarValue, { color: colors.textOnCardSecondary }]}>
-          {formatKwp(data.pv?.installed_capacity_kwp)}
-        </Text>
-      </Animated.View>
+        {nodes.map((node) => (
+          <AssetNode
+            key={node.key}
+            node={node}
+            fill={nodeFill}
+            border={nodeBorder}
+            labelColor={labelColor}
+            valueColor={valueColor}
+          />
+        ))}
 
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.inverterNode,
-          productionStyle,
-          {
-            left: inverter.x * scale - 52,
-            top: inverter.y * scale - 40,
-          },
-        ]}>
-        <InverterGlyph scale={scale} />
-        <Text style={[styles.inverterLabel, { color: colors.textOnCard }]}>Production</Text>
-        <Text style={[styles.inverterValue, { color: '#F59E0B' }]}>
+        <Ellipse cx={INV.x} cy={INV_BOTTOM + 8} rx={32} ry={8} fill={flow.productionFill} opacity={0.2} />
+        <InverterGlyph x={INV.x} y={INV.y} fill={flow.productionFill} icon={flow.productionIcon} />
+        <SvgText
+          x={INV.x}
+          y={INV_BOTTOM + 24}
+          fill={labelColor}
+          fontSize={13}
+          fontWeight="800"
+          textAnchor="middle">
+          Production
+        </SvgText>
+        <SvgText
+          x={INV.x}
+          y={INV_BOTTOM + 42}
+          fill={labelColor}
+          fontSize={12}
+          fontWeight="800"
+          textAnchor="middle">
           {formatKw(data.pv?.kw)}
-        </Text>
-      </Animated.View>
-
-      {nodes.map((node) => (
-        <FlowNode key={node.key} node={node} scale={scale} />
-      ))}
+        </SvgText>
+      </Svg>
     </View>
   );
 }
@@ -313,107 +503,5 @@ export function AnimatedEnergyFlow({ data }: { data: SolarSiteStatus }) {
 const styles = StyleSheet.create({
   diagram: {
     alignSelf: 'center',
-    position: 'relative',
-  },
-  node: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  nodeLabel: {
-    marginTop: 5,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  nodeValue: {
-    marginTop: 1,
-    fontSize: 9,
-    fontWeight: '600',
-  },
-  nodeDetail: {
-    marginTop: 1,
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  solarNode: {
-    position: 'absolute',
-    width: 88,
-    height: 65,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  solarLabel: {
-    marginTop: 2,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  solarValue: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  inverterNode: {
-    position: 'absolute',
-    width: 104,
-    height: 104,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inverterLabel: {
-    marginTop: 2,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  inverterDetail: {
-    marginTop: 1,
-    fontSize: 9,
-    fontWeight: '600',
-  },
-  inverterValue: {
-    marginTop: 1,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  inverterGlyph: {
-    width: 40,
-    height: 47,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: '#F59E0B',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  inverterGlow: {
-    width: 21,
-    height: 6,
-    marginTop: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(245,158,11,0.34)',
-  },
-  inverterDisplay: {
-    position: 'absolute',
-    left: 7,
-    bottom: 9,
-    width: 11,
-    height: 9,
-    borderRadius: 2,
-    borderWidth: 1.5,
-    borderColor: '#F59E0B',
-  },
-  inverterLed: {
-    position: 'absolute',
-    right: 8,
-    bottom: 12,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#F59E0B',
-  },
-  inverterBaseLine: {
-    position: 'absolute',
-    left: 4,
-    right: 4,
-    bottom: 3,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: 'rgba(245,158,11,0.5)',
   },
 });

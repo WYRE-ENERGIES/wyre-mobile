@@ -66,8 +66,8 @@ export function SiteStatusEnlargeSheet({ visible, onClose, data }: SiteStatusEnl
         value={formatKw(data.battery?.kw)}
       />
       <FlowRow
-        label="Home usage"
-        detail="What the house is using now"
+        label="Usage"
+        detail="What the site is using now"
         value={formatKw(data.load.kw)}
       />
       <FlowRow
@@ -98,6 +98,7 @@ const styles = StyleSheet.create({
   diagramCard: {
     borderRadius: 20,
     paddingTop: 8,
+    paddingBottom: 10,
     overflow: 'hidden',
   },
   row: {

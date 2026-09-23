@@ -13,16 +13,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { WyreColors } from '@/constants/theme';
 import { useAppTheme } from '@/context/theme-context';
-import { fetchDieselDailyUsage } from '@/lib/cost-tracker-api';
+import { dieselTrackerOverviewError, fetchDieselDailyUsage } from '@/lib/cost-tracker-api';
 import { entriesInMonth, parseMonthForDrillDown } from '@/lib/cost-tracker-transform';
 import type { DieselDailyEntry } from '@/lib/cost-tracker-types';
-import { formatDecimalHours, formatLitres, formatShortDate } from '@/lib/format';
+import { formatDecimalHours, formatKwh, formatLitres, formatNumber, formatShortDate } from '@/lib/format';
 
 type DieselDetailModalProps = {
   visible: boolean;
   month: string | null;
   branchId: number | null;
-  isOperator?: boolean;
   onClose: () => void;
 };
 
@@ -32,26 +31,39 @@ function durationInMinutes(value: string): number {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
-function EntryCard({
-  entry,
-  isOperator,
-}: {
-  entry: DieselDailyEntry;
-  isOperator?: boolean;
-}) {
+function generatorNames(entry: DieselDailyEntry): string[] {
+  return [
+    ...new Set([
+      ...Object.keys(entry.energy_consumed ?? {}),
+      ...Object.keys(entry.energy_per_litre ?? {}),
+      ...Object.keys(entry.litres_per_hour ?? {}),
+    ]),
+  ].sort();
+}
+
+function hasLoggedDiesel(entry: DieselDailyEntry): boolean {
+  return (
+    (entry.quantity ?? 0) > 0 ||
+    (entry.fuel_consumption_id ?? 0) > 0 ||
+    durationInMinutes(entry.hours_of_use) > 0
+  );
+}
+
+function EntryCard({ entry }: { entry: DieselDailyEntry }) {
   const { colors } = useAppTheme();
+  const generators = generatorNames(entry).filter((name) => {
+    const energy = entry.energy_consumed?.[name] ?? 0;
+    const perLitre = entry.energy_per_litre?.[name] ?? 0;
+    const litresPerHour = entry.litres_per_hour?.[name] ?? 0;
+    return energy > 0 || perLitre > 0 || litresPerHour > 0;
+  });
+
   return (
     <View style={[styles.entryCard, { backgroundColor: colors.surface }]}>
       <View style={styles.entryHeader}>
         <Text style={[styles.entryDate, { color: colors.textOnCard }]}>
           {formatShortDate(entry.date)}
         </Text>
-        {isOperator ? (
-          <View style={styles.editBtn}>
-            <MaterialIcons name="edit" size={16} color={WyreColors.purple} />
-            <Text style={styles.editText}>Edit on web</Text>
-          </View>
-        ) : null}
       </View>
 
       <View style={styles.entryMetrics}>
@@ -69,6 +81,19 @@ function EntryCard({
           </Text>
         </View>
       </View>
+
+      {generators.map((name) => (
+        <View key={name} style={[styles.generatorRow, { borderTopColor: colors.border }]}>
+          <Text style={[styles.generatorName, { color: colors.textOnCard }]}>{name}</Text>
+          <Text style={[styles.generatorMetric, { color: colors.textOnCardSecondary }]}>
+            {formatKwh(entry.energy_consumed?.[name], 1)}
+            {'  ·  '}
+            {formatNumber(entry.energy_per_litre?.[name], 2)} kWh/L
+            {'  ·  '}
+            {formatNumber(entry.litres_per_hour?.[name], 2)} L/h
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -77,7 +102,6 @@ export function DieselDetailModal({
   visible,
   month,
   branchId,
-  isOperator = false,
   onClose,
 }: DieselDetailModalProps) {
   const insets = useSafeAreaInsets();
@@ -103,7 +127,7 @@ export function DieselDetailModal({
     void fetchDieselDailyUsage(branchId, parsed.year, parsed.month)
       .then((data) => {
         if (!cancelled) {
-          const filtered = entriesInMonth(data, month);
+          const filtered = entriesInMonth(data, month).filter(hasLoggedDiesel);
           setRows(
             [...filtered].sort(
               (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
@@ -111,9 +135,9 @@ export function DieselDetailModal({
           );
         }
       })
-      .catch(() => {
+      .catch((caught) => {
         if (!cancelled) {
-          setError('Unable to load daily diesel entries.');
+          setError(dieselTrackerOverviewError(caught));
           setRows([]);
         }
       })
@@ -184,7 +208,7 @@ export function DieselDetailModal({
 
             <FlatList
               data={rows}
-              keyExtractor={(item) => String(item.fuel_consumption_id ?? item.date)}
+              keyExtractor={(item) => item.date}
               contentContainerStyle={[
                 styles.listContent,
                 { paddingBottom: insets.bottom + 24 },
@@ -202,9 +226,7 @@ export function DieselDetailModal({
                   </Text>
                 ) : null
               }
-              renderItem={({ item }) => (
-                <EntryCard entry={item} isOperator={isOperator} />
-              )}
+              renderItem={({ item }) => <EntryCard entry={item} />}
             />
           </>
         )}
@@ -289,23 +311,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(92, 18, 167, 0.08)',
-  },
-  editText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: WyreColors.purple,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
   entryMetrics: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -326,6 +331,19 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  generatorRow: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 10,
+    gap: 3,
+  },
+  generatorName: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  generatorMetric: {
+    fontSize: 11,
+    lineHeight: 16,
   },
   centered: {
     flex: 1,

@@ -1,4 +1,4 @@
-import type { AxiosResponse } from 'axios';
+import { isAxiosError, type AxiosResponse } from 'axios';
 
 import { APIService } from '@/config/api/apiServices';
 import type {
@@ -60,13 +60,39 @@ export async function fetchCostTrackerBaseline(branchId: number): Promise<CostTr
   return unwrapData<CostTrackerBaseline>(response);
 }
 
+export function dieselTrackerOverviewError(error: unknown): string {
+  if (isAxiosError(error)) {
+    const status = error.response?.status;
+    const body = error.response?.data;
+    if (body && typeof body === 'object') {
+      const record = body as Record<string, unknown>;
+      if (typeof record.message === 'string' && record.message.trim()) {
+        return record.message;
+      }
+      if (typeof record.detail === 'string' && record.detail.trim()) {
+        return record.detail;
+      }
+    }
+    if (status === 403) return "You don't have permission to view this branch.";
+    if (status === 404) return 'Branch not found.';
+    if (status === 400) return 'Invalid month or year for diesel overview.';
+    if (status === 401) return 'Please sign in again to view diesel entries.';
+  }
+  return 'Unable to load daily diesel entries.';
+}
+
 export async function fetchDieselDailyUsage(
   branchId: number,
-  year: string,
-  month: string,
+  year: number | string,
+  month: number | string,
 ): Promise<DieselDailyEntry[]> {
-  const response = await APIService.get(`diesel_tracker_overview/${branchId}/${year}/${month}/`);
-  return unwrapData<DieselDailyEntry[]>(response);
+  const yearNum = Number(year);
+  const monthNum = Number(month);
+  const response = await APIService.get(
+    `diesel_tracker_overview/${branchId}/${yearNum}/${monthNum}/`,
+  );
+  const rows = unwrapData<DieselDailyEntry[]>(response);
+  return Array.isArray(rows) ? rows : [];
 }
 
 export async function fetchCostTrackerDashboard(branchId: number) {

@@ -19,7 +19,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { DashboardScreen } from '@/components/wyre/dashboard-screen';
 import { NotificationBellButton } from '@/components/wyre/notification-bell-button';
-import { useSiteCapabilities } from '@/context/site-capability-context';
 import { useAppTheme } from '@/context/theme-context';
 import { useNotificationSettings } from '@/hooks/use-notification-settings';
 import { getBranchId } from '@/lib/auth-user';
@@ -77,7 +76,11 @@ function SectionHeading({
   subtitle,
   color,
 }: {
-  icon: 'battery.100.bolt' | 'gauge.with.dots.needle.33percent';
+  icon:
+    | 'battery.100.bolt'
+    | 'gauge.with.dots.needle.33percent'
+    | 'bolt.fill'
+    | 'fuelpump.fill';
   title: string;
   subtitle: string;
   color: string;
@@ -355,22 +358,100 @@ function ThresholdModal({
   );
 }
 
+function EnergyPercentModal({
+  visible,
+  saving,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (value: number) => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
+  const [value, setValue] = useState('80');
+
+  const save = () => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric < 1 || numeric > 100) {
+      Alert.alert('Enter a value from 1 to 100');
+      return;
+    }
+    onSave(numeric);
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+        <Pressable style={styles.modalBackdrop} onPress={onClose} />
+        <View
+          style={[
+            styles.modalSheet,
+            { backgroundColor: colors.surface, paddingBottom: insets.bottom + 18 },
+          ]}>
+          <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={[styles.modalTitle, { color: colors.textOnCard }]}>Add usage alert</Text>
+              <Text style={[styles.modalSubtitle, { color: colors.textOnCardSecondary }]}>
+                Notify when month-to-date usage reaches this % of target. 100% is always kept.
+              </Text>
+            </View>
+            <Pressable onPress={onClose} style={[styles.modalClose, { backgroundColor: colors.surfaceMuted }]}>
+              <IconSymbol name="xmark" size={20} color={colors.textOnCard} />
+            </Pressable>
+          </View>
+          <Text style={[styles.inputLabel, { color: colors.textOnCard }]}>Percent of monthly target</Text>
+          <View style={[styles.percentInput, { backgroundColor: colors.surfaceMuted }]}>
+            <TextInput
+              value={value}
+              onChangeText={(text) => setValue(text.replace(/[^0-9.]/g, ''))}
+              keyboardType="decimal-pad"
+              maxLength={5}
+              selectTextOnFocus
+              style={[styles.percentInputText, { color: colors.textOnCard }]}
+            />
+            <Text style={[styles.percentSymbol, { color: colors.textOnCardSecondary }]}>%</Text>
+          </View>
+          <Pressable
+            onPress={save}
+            disabled={saving}
+            style={[styles.primaryButton, { backgroundColor: colors.accent }, saving && styles.faded]}>
+            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>Add rule</Text>}
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function TargetScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const userData = useAppSelector((state) => state.auth.userData);
-  const { hasSolar: solarCustomer } = useSiteCapabilities();
   const branchId = getBranchId(userData);
   const branchName = getBranchLabel(userData);
-  const settings = useNotificationSettings(solarCustomer ? branchId : null);
+  const settings = useNotificationSettings(branchId);
   const displayBranchName =
     settings.batteryConfig?.branch_name ??
+    settings.energyConfig?.branch_name ??
+    settings.dieselConfig?.branch_name ??
     settings.capacityConfig?.branch_name ??
     branchName;
   const [timeOpen, setTimeOpen] = useState(false);
   const [thresholdOpen, setThresholdOpen] = useState(false);
+  const [energyThresholdOpen, setEnergyThresholdOpen] = useState(false);
   const [capacityDraft, setCapacityDraft] = useState(80);
+  const [targetDraft, setTargetDraft] = useState('');
   const disabled = settings.busy != null;
+  const hasAnyConfig = Boolean(
+    settings.batteryConfig ||
+      settings.energyConfig ||
+      settings.dieselConfig ||
+      settings.capacityConfig,
+  );
 
   useEffect(() => {
     if (settings.capacityConfig) {
@@ -378,29 +459,35 @@ export default function TargetScreen() {
     }
   }, [settings.capacityConfig]);
 
+  useEffect(() => {
+    if (settings.energyConfig) {
+      setTargetDraft(String(Math.round(settings.energyConfig.target_kwh)));
+    }
+  }, [settings.energyConfig]);
+
   const permissionDenied =
-    !settings.batteryConfig &&
-    !settings.capacityConfig &&
+    !hasAnyConfig &&
     settings.batteryAvailability === 'forbidden' &&
+    settings.energyAvailability === 'forbidden' &&
+    settings.dieselAvailability === 'forbidden' &&
     settings.capacityAvailability === 'forbidden';
   const bothUnavailable =
-    settings.batteryAvailability === 'unavailable' &&
-    settings.capacityAvailability === 'unavailable';
+    !hasAnyConfig &&
+    [settings.batteryAvailability, settings.energyAvailability, settings.dieselAvailability, settings.capacityAvailability].every(
+      (item) => item === 'unavailable',
+    );
   const settingsApiUnavailable =
-    settings.batteryAvailability === 'error' &&
-    settings.capacityAvailability === 'error' &&
-    !settings.batteryConfig &&
-    !settings.capacityConfig;
-  const noAvailableSettings =
-    !settings.batteryConfig &&
-    !settings.capacityConfig &&
-    !settings.loading &&
-    !settingsApiUnavailable &&
-    !permissionDenied &&
-    !bothUnavailable;
+    !hasAnyConfig &&
+    [settings.batteryAvailability, settings.energyAvailability, settings.dieselAvailability, settings.capacityAvailability].every(
+      (item) => item === 'error',
+    );
+  const noAvailableSettings = !hasAnyConfig && !settings.loading && !settingsApiUnavailable && !permissionDenied && !bothUnavailable;
   const capacityChanged =
     settings.capacityConfig != null &&
     capacityDraft !== Math.round(settings.capacityConfig.threshold_pct);
+  const targetChanged =
+    settings.energyConfig != null &&
+    Number(targetDraft) !== Math.round(settings.energyConfig.target_kwh);
 
   const deleteTime = (id: number, time: string) => {
     Alert.alert('Remove send time?', `${displayTime(time)} will no longer send a digest.`, [
@@ -416,11 +503,23 @@ export default function TargetScreen() {
     ]);
   };
 
+  const deleteEnergyThreshold = (id: number, label: string) => {
+    Alert.alert('Remove usage alert?', label, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => void settings.removeEnergyThreshold(id),
+      },
+    ]);
+  };
+
   const stateMessage = useMemo(() => {
-    if (!solarCustomer) return 'Alert targets are available for solar branches only.';
     if (!branchId) return 'Your account is not linked to a branch.';
     if (permissionDenied) return 'You are not permitted to change alert settings for this branch.';
-    if (bothUnavailable) return 'This branch has no compatible battery or inverter capacity.';
+    if (bothUnavailable) {
+      return 'This branch has no compatible battery, meters, generator, or inverter capacity.';
+    }
     if (noAvailableSettings) {
       return 'Alert settings are not available for this account or branch.';
     }
@@ -429,7 +528,6 @@ export default function TargetScreen() {
     }
     return null;
   }, [
-    solarCustomer,
     branchId,
     permissionDenied,
     bothUnavailable,
@@ -450,7 +548,7 @@ export default function TargetScreen() {
         <NotificationBellButton />
       </View>
 
-      {settings.loading && solarCustomer && branchId ? (
+      {settings.loading && branchId ? (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={colors.accent} />
           <Text style={[styles.loadingText, { color: colors.textOnPageMuted }]}>
@@ -658,13 +756,183 @@ export default function TargetScreen() {
                 )}
               </View>
             </Card>
-          ) : settings.batteryAvailability === 'unavailable' ? (
+          ) : null}
+
+          {settings.energyConfig ? (
             <Card>
-              <EmptyRow text="Battery SOC alerts are unavailable because this station has no battery capacity." />
+              <SectionHeading
+                icon="bolt.fill"
+                title="Energy usage target"
+                subtitle="Month-to-date kWh vs your monthly target"
+                color="#7C3AED"
+              />
+              <ToggleRow
+                title="Usage alerts"
+                subtitle="Master switch for energy-target notifications"
+                value={settings.energyConfig.is_enabled}
+                disabled={disabled}
+                onChange={(value) => void settings.updateEnergy({ is_enabled: value })}
+              />
+              <ToggleRow
+                title="Push notifications"
+                subtitle="Send push and save it in Notifications"
+                value={settings.energyConfig.push_enabled}
+                disabled={disabled}
+                onChange={(value) => void settings.updateEnergy({ push_enabled: value })}
+              />
+              <ToggleRow
+                title="Email"
+                subtitle="Send to the branch email address"
+                value={settings.energyConfig.email_enabled}
+                disabled={disabled}
+                last
+                onChange={(value) => void settings.updateEnergy({ email_enabled: value })}
+              />
+
+              <View style={[styles.subsection, { borderTopColor: colors.border }]}>
+                <Text style={[styles.inputLabel, { color: colors.textOnCard }]}>Monthly target</Text>
+                <View style={[styles.kwhInput, { backgroundColor: colors.surfaceMuted }]}>
+                  <TextInput
+                    value={targetDraft}
+                    onChangeText={(text) => setTargetDraft(text.replace(/[^0-9.]/g, ''))}
+                    keyboardType="decimal-pad"
+                    selectTextOnFocus
+                    style={[styles.kwhInputText, { color: colors.textOnCard }]}
+                  />
+                  <Text style={[styles.kwhUnit, { color: colors.textOnCardSecondary }]}>kWh</Text>
+                </View>
+                <Pressable
+                  onPress={() => void settings.updateEnergy({ target_kwh: Number(targetDraft) })}
+                  disabled={!targetChanged || disabled || !Number.isFinite(Number(targetDraft))}
+                  style={[
+                    styles.capacitySave,
+                    {
+                      backgroundColor:
+                        targetChanged && !disabled && Number.isFinite(Number(targetDraft))
+                          ? colors.accent
+                          : colors.surfaceMuted,
+                    },
+                  ]}>
+                  {settings.busy === 'energy-config' ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.capacitySaveText,
+                        {
+                          color:
+                            targetChanged && !disabled
+                              ? colors.textOnAccent
+                              : colors.textOnCardSecondary,
+                        },
+                      ]}>
+                      {targetChanged ? 'Save target' : 'Target saved'}
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+
+              <View style={[styles.subsection, { borderTopColor: colors.border }]}>
+                <View style={styles.subsectionHeader}>
+                  <View style={styles.headingCopy}>
+                    <Text style={[styles.subsectionTitle, { color: colors.textOnCard }]}>
+                      Alert at % of target
+                    </Text>
+                    <Text style={[styles.subsectionHint, { color: colors.textOnCardSecondary }]}>
+                      100% always fires and cannot be removed
+                    </Text>
+                  </View>
+                  <AddButton
+                    label="Add %"
+                    onPress={() => setEnergyThresholdOpen(true)}
+                    disabled={disabled}
+                  />
+                </View>
+                {settings.energyConfig.thresholds.length === 0 ? (
+                  <EmptyRow text="No usage-target rules yet" />
+                ) : (
+                  <View style={styles.itemList}>
+                    {settings.energyConfig.thresholds.map((item) => {
+                      const label = `Reaches ${item.value}% of target`;
+                      const locked = item.locked === true || item.value >= 100;
+                      return (
+                        <View
+                          key={item.id}
+                          style={[styles.itemRow, { backgroundColor: colors.surfaceMuted }]}>
+                          <View
+                            style={[
+                              styles.ruleSymbol,
+                              { backgroundColor: 'rgba(124,58,237,0.14)' },
+                            ]}>
+                            <Text style={{ color: colors.accent }}>≥</Text>
+                          </View>
+                          <View style={styles.itemCopy}>
+                            <Text style={[styles.itemTitle, { color: colors.textOnCard }]}>
+                              {label}
+                            </Text>
+                            <Text style={[styles.itemSubtitle, { color: colors.textOnCardSecondary }]}>
+                              {locked ? 'Always included' : 'Operator must be ≥'}
+                            </Text>
+                          </View>
+                          {locked ? (
+                            <View style={styles.removeButton}>
+                              <IconSymbol name="lock.fill" size={16} color={colors.textOnCardSecondary} />
+                            </View>
+                          ) : (
+                            <Pressable
+                              onPress={() => deleteEnergyThreshold(item.id, label)}
+                              disabled={disabled}
+                              style={styles.removeButton}>
+                              {settings.busy === `energy-threshold-${item.id}` ? (
+                                <ActivityIndicator size="small" color={colors.textOnCardSecondary} />
+                              ) : (
+                                <IconSymbol name="xmark" size={18} color={colors.textOnCardSecondary} />
+                              )}
+                            </Pressable>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
             </Card>
-          ) : settings.batteryAvailability === 'forbidden' ? (
+          ) : null}
+
+          {settings.dieselConfig ? (
             <Card>
-              <EmptyRow text="Battery SOC alert settings are restricted for this account." />
+              <SectionHeading
+                icon="fuelpump.fill"
+                title="Diesel entry reminder"
+                subtitle="Remind at 10:00 if yesterday has no diesel entry"
+                color="#EA580C"
+              />
+              <ToggleRow
+                title="Reminders"
+                subtitle="Master switch for the 10:00 Lagos reminder"
+                value={settings.dieselConfig.is_enabled}
+                disabled={disabled}
+                onChange={(value) => void settings.updateDiesel({ is_enabled: value })}
+              />
+              <ToggleRow
+                title="Push notifications"
+                subtitle="Notify the app"
+                value={settings.dieselConfig.push_enabled}
+                disabled={disabled}
+                onChange={(value) => void settings.updateDiesel({ push_enabled: value })}
+              />
+              <ToggleRow
+                title="Email"
+                subtitle="Send to the branch email address"
+                value={settings.dieselConfig.email_enabled}
+                disabled={disabled}
+                last
+                onChange={(value) => void settings.updateDiesel({ email_enabled: value })}
+              />
+              <Text style={[styles.evaluationNote, { color: colors.textOnCardSecondary }]}>
+                Time is fixed at {displayTime(settings.dieselConfig.reminder_time || '10:00')} Lagos
+                and cannot be changed.
+              </Text>
             </Card>
           ) : null}
 
@@ -740,14 +1008,6 @@ export default function TargetScreen() {
                 </Text>
               </View>
             </Card>
-          ) : settings.capacityAvailability === 'unavailable' ? (
-            <Card>
-              <EmptyRow text="Power-demand alerts are unavailable because this station has no inverter capacity." />
-            </Card>
-          ) : settings.capacityAvailability === 'forbidden' ? (
-            <Card>
-              <EmptyRow text="Power-demand alert settings are restricted for this account." />
-            </Card>
           ) : null}
         </ScrollView>
       )}
@@ -769,6 +1029,16 @@ export default function TargetScreen() {
         onSave={(operator, value) => {
           void settings.addThreshold(operator, value).then((saved) => {
             if (saved) setThresholdOpen(false);
+          });
+        }}
+      />
+      <EnergyPercentModal
+        visible={energyThresholdOpen}
+        saving={settings.busy === 'add-energy-threshold'}
+        onClose={() => setEnergyThresholdOpen(false)}
+        onSave={(value) => {
+          void settings.addEnergyThreshold(value).then((saved) => {
+            if (saved) setEnergyThresholdOpen(false);
           });
         }}
       />
@@ -877,5 +1147,15 @@ const styles = StyleSheet.create({
   percentInput: { minHeight: 64, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   percentInputText: { minWidth: 70, fontSize: 30, fontWeight: '800', textAlign: 'right', padding: 0 },
   percentSymbol: { fontSize: 23, fontWeight: '700', marginLeft: 4 },
+  kwhInput: {
+    minHeight: 52,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  kwhInputText: { flex: 1, fontSize: 22, fontWeight: '800', padding: 0 },
+  kwhUnit: { fontSize: 14, fontWeight: '700' },
   faded: { opacity: 0.55 },
 });

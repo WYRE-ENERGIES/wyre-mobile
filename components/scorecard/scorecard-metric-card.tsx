@@ -6,28 +6,11 @@ import {
   toneColor,
   type ScorecardGeneratorEntry,
   type ScorecardMetric,
-  type ScorecardTone,
 } from '@/lib/scorecard-metrics';
 
 type ScorecardMetricCardProps = {
   metric: ScorecardMetric;
 };
-
-const TONE_PILL_BG: Record<ScorecardTone, string> = {
-  good: '#dcfce7',
-  warn: '#fef3c7',
-  bad: '#fee2e2',
-  neutral: '#f3e8ff',
-};
-
-function StatusPill({ tone, label }: { tone: ScorecardTone; label: string }) {
-  return (
-    <View style={[styles.pill, { backgroundColor: TONE_PILL_BG[tone] }]}>
-      <View style={[styles.pillDot, { backgroundColor: toneColor(tone) }]} />
-      <Text style={[styles.pillText, { color: toneColor(tone) }]}>{label}</Text>
-    </View>
-  );
-}
 
 function GeneratorEntryBlock({ entry }: { entry: ScorecardGeneratorEntry }) {
   const { colors } = useAppTheme();
@@ -38,23 +21,17 @@ function GeneratorEntryBlock({ entry }: { entry: ScorecardGeneratorEntry }) {
         centerPrimary={entry.chart.centerPrimary}
         centerSecondary={entry.chart.centerSecondary}
         accentColor={entry.chart.accentColor}
-        size={120}
+        size={88}
       />
 
-      <View style={styles.generatorDetails}>
+      <View style={styles.sideCopy}>
         <Text style={[styles.generatorName, { color: colors.textOnCard }]}>{entry.name}</Text>
-        <Text style={[styles.generatorSubtitle, { color: colors.textOnCard }]}>
-          {entry.subtitle}
-        </Text>
+        <Text style={[styles.headline, { color: colors.textOnCard }]}>{entry.subtitle}</Text>
         {entry.detail ? (
-          <Text style={[styles.generatorDetail, { color: colors.textOnCardSecondary }]}>
-            {entry.detail}
-          </Text>
+          <Text style={[styles.hint, { color: colors.textOnCardSecondary }]}>{entry.detail}</Text>
         ) : null}
         {entry.status ? (
-          <Text style={[styles.generatorStatus, { color: entry.status.color }]}>
-            {entry.status.message}
-          </Text>
+          <Text style={[styles.status, { color: entry.status.color }]}>{entry.status.message}</Text>
         ) : null}
       </View>
     </View>
@@ -63,42 +40,19 @@ function GeneratorEntryBlock({ entry }: { entry: ScorecardGeneratorEntry }) {
 
 export function ScorecardMetricCard({ metric }: ScorecardMetricCardProps) {
   const { colors } = useAppTheme();
-  const hasGenerators = metric.generatorEntries && metric.generatorEntries.length > 0;
+  const hasGenerators = Boolean(metric.generatorEntries?.length);
+  const statusColor = metric.status ? toneColor(metric.status.tone) : colors.textOnCard;
+  const headline = metric.headline.trim() && metric.headline !== '—' ? metric.headline : '';
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface }]}>
-      <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: colors.textOnCard }]}>{metric.title}</Text>
-        {metric.status ? (
-          <StatusPill tone={metric.status.tone} label={metric.status.label} />
-        ) : null}
-      </View>
+      <Text style={[styles.title, { color: colors.textOnCard }]}>{metric.title}</Text>
 
-      {!hasGenerators && metric.chart ? (
-        <ScorecardDoughnutChart
-          segments={metric.chart.segments}
-          centerPrimary={metric.chart.centerPrimary}
-          centerSecondary={metric.chart.centerSecondary}
-          accentColor={metric.chart.accentColor}
-        />
-      ) : !hasGenerators ? (
-        <View style={styles.headlineBlock}>
-          <Text
-            style={[
-              styles.headline,
-              metric.status ? { color: toneColor(metric.status.tone) } : null,
-            ]}>
-            {metric.headline}
-          </Text>
-          {metric.headlineHint ? (
-            <Text style={[styles.headlineHint, { color: colors.textOnCardSecondary }]}>
-              {metric.headlineHint}
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
-
-      {hasGenerators ? (
+      {metric.unavailable ? (
+        <Text style={[styles.hint, { color: colors.textOnCardSecondary }]}>
+          This metric could not be loaded. Pull to refresh.
+        </Text>
+      ) : hasGenerators ? (
         <View style={styles.generatorList}>
           {metric.generatorEntries!.map((entry, index) => (
             <View key={entry.key}>
@@ -109,7 +63,41 @@ export function ScorecardMetricCard({ metric }: ScorecardMetricCardProps) {
             </View>
           ))}
         </View>
-      ) : null}
+      ) : metric.chart && headline ? (
+        <View style={styles.hero}>
+          <ScorecardDoughnutChart
+            segments={metric.chart.segments}
+            centerPrimary={metric.chart.centerPrimary}
+            centerSecondary={metric.chart.centerSecondary}
+            accentColor={metric.chart.accentColor}
+          />
+          <View style={styles.sideCopy}>
+            <Text style={[styles.headline, { color: statusColor }]}>{headline}</Text>
+            {metric.headlineHint ? (
+              <Text style={[styles.hint, { color: colors.textOnCardSecondary }]}>
+                {metric.headlineHint}
+              </Text>
+            ) : null}
+            {metric.status ? (
+              <Text style={[styles.status, { color: statusColor }]}>{metric.status.label}</Text>
+            ) : null}
+          </View>
+        </View>
+      ) : (
+        <View style={styles.headlineBlock}>
+          {headline ? (
+            <Text style={[styles.headlineLarge, { color: statusColor }]}>{headline}</Text>
+          ) : null}
+          {metric.headlineHint ? (
+            <Text style={[styles.hint, { color: colors.textOnCardSecondary }]}>
+              {metric.headlineHint}
+            </Text>
+          ) : null}
+          {metric.status ? (
+            <Text style={[styles.status, { color: statusColor }]}>{metric.status.label}</Text>
+          ) : null}
+        </View>
+      )}
 
       {metric.rows.length > 0 ? (
         <View style={[styles.rows, { borderTopColor: colors.border }]}>
@@ -136,7 +124,7 @@ export function ScorecardMetricCard({ metric }: ScorecardMetricCardProps) {
           {metric.footerNote}
         </Text>
       ) : null}
-      {metric.footer ? (
+      {metric.footer && !metric.unavailable ? (
         <Text style={[styles.footer, { color: colors.textOnCardSecondary }]}>{metric.footer}</Text>
       ) : null}
     </View>
@@ -149,48 +137,39 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 14,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
   title: {
-    flex: 1,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
-  pill: {
+  hero: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    flexShrink: 0,
+    gap: 16,
   },
-  pillDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  pillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  headlineBlock: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    gap: 2,
+  sideCopy: {
+    flex: 1,
+    gap: 4,
   },
   headline: {
-    fontSize: 32,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#9D4EDD',
+    letterSpacing: -0.4,
+  },
+  headlineLarge: {
+    fontSize: 28,
+    fontWeight: '700',
     letterSpacing: -0.5,
   },
-  headlineHint: {
+  headlineBlock: {
+    gap: 4,
+  },
+  hint: {
     fontSize: 13,
+  },
+  status: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
   },
   generatorList: {
     gap: 0,
@@ -204,24 +183,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  generatorDetails: {
-    flex: 1,
-    gap: 4,
-  },
   generatorName: {
     fontSize: 14,
     fontWeight: '700',
-  },
-  generatorSubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  generatorDetail: {
-    fontSize: 13,
-  },
-  generatorStatus: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   rows: {
     gap: 10,
@@ -249,7 +213,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     fontSize: 12,
-    fontStyle: 'italic',
-    textAlign: 'center',
+    lineHeight: 18,
   },
 });

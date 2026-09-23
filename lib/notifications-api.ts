@@ -24,6 +24,11 @@ export type NotificationListResponse = {
   results: ApiNotification[];
 };
 
+export type NotificationCategoryCatalogItem = {
+  code: string;
+  label: string;
+};
+
 export type NotificationTypeCatalogItem = {
   code: string;
   label: string;
@@ -31,6 +36,23 @@ export type NotificationTypeCatalogItem = {
   action: string | null;
   destination: string | null;
   description: string;
+  configurable: boolean;
+  surfaces: string[];
+  alert_setting_key: string | null;
+};
+
+export type NotificationAlertSettingCatalogItem = {
+  key: string;
+  label: string;
+  category: string;
+  group: string;
+  fires: boolean;
+};
+
+export type NotificationCatalog = {
+  categories: NotificationCategoryCatalogItem[];
+  types: NotificationTypeCatalogItem[];
+  alert_settings: NotificationAlertSettingCatalogItem[];
 };
 
 export type ListNotificationsParams = {
@@ -45,6 +67,11 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     return value as Record<string, unknown>;
   }
   return null;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string');
 }
 
 export function parseApiNotification(raw: unknown): ApiNotification | null {
@@ -72,6 +99,60 @@ export function parseApiNotification(raw: unknown): ApiNotification | null {
     is_read: item.is_read === true,
     created_at: typeof item.created_at === 'string' ? item.created_at : new Date().toISOString(),
     read_at: typeof item.read_at === 'string' ? item.read_at : null,
+  };
+}
+
+function parseCategory(raw: unknown): NotificationCategoryCatalogItem | null {
+  const row = asRecord(raw);
+  if (!row || typeof row.code !== 'string') return null;
+  return {
+    code: row.code,
+    label: typeof row.label === 'string' ? row.label : row.code,
+  };
+}
+
+function parseType(raw: unknown): NotificationTypeCatalogItem | null {
+  const row = asRecord(raw);
+  if (!row || typeof row.code !== 'string') return null;
+  return {
+    code: row.code,
+    label: typeof row.label === 'string' ? row.label : row.code,
+    category: typeof row.category === 'string' ? row.category : '',
+    action: typeof row.action === 'string' ? row.action : null,
+    destination: typeof row.destination === 'string' ? row.destination : null,
+    description: typeof row.description === 'string' ? row.description : '',
+    configurable: row.configurable === true,
+    surfaces: asStringArray(row.surfaces),
+    alert_setting_key: typeof row.alert_setting_key === 'string' ? row.alert_setting_key : null,
+  };
+}
+
+function parseAlertSetting(raw: unknown): NotificationAlertSettingCatalogItem | null {
+  const row = asRecord(raw);
+  if (!row || typeof row.key !== 'string') return null;
+  return {
+    key: row.key,
+    label: typeof row.label === 'string' ? row.label : row.key,
+    category: typeof row.category === 'string' ? row.category : '',
+    group: typeof row.group === 'string' ? row.group : '',
+    fires: row.fires === true,
+  };
+}
+
+export function parseNotificationCatalog(raw: unknown): NotificationCatalog {
+  const body = asRecord(raw) ?? {};
+  return {
+    categories: Array.isArray(body.categories)
+      ? body.categories.map(parseCategory).filter((item): item is NotificationCategoryCatalogItem => item != null)
+      : [],
+    types: Array.isArray(body.types)
+      ? body.types.map(parseType).filter((item): item is NotificationTypeCatalogItem => item != null)
+      : [],
+    alert_settings: Array.isArray(body.alert_settings)
+      ? body.alert_settings
+          .map(parseAlertSetting)
+          .filter((item): item is NotificationAlertSettingCatalogItem => item != null)
+      : [],
   };
 }
 
@@ -129,26 +210,14 @@ export async function deleteNotifications(body: { ids: number[] } | { all: true 
   return typeof deleted === 'number' ? deleted : 0;
 }
 
-export async function fetchNotificationTypes(): Promise<NotificationTypeCatalogItem[]> {
+export async function fetchNotificationCatalog(): Promise<NotificationCatalog> {
   const response = await APIService.get('notifications/types/');
-  const types = response.data?.types;
-  if (!Array.isArray(types)) return [];
+  return parseNotificationCatalog(response.data);
+}
 
-  return types
-    .map((item: unknown) => {
-      if (!item || typeof item !== 'object') return null;
-      const row = item as Record<string, unknown>;
-      if (typeof row.code !== 'string') return null;
-      return {
-        code: row.code,
-        label: typeof row.label === 'string' ? row.label : row.code,
-        category: typeof row.category === 'string' ? row.category : '',
-        action: typeof row.action === 'string' ? row.action : null,
-        destination: typeof row.destination === 'string' ? row.destination : null,
-        description: typeof row.description === 'string' ? row.description : '',
-      } satisfies NotificationTypeCatalogItem;
-    })
-    .filter((item): item is NotificationTypeCatalogItem => item != null);
+export async function fetchNotificationTypes(): Promise<NotificationTypeCatalogItem[]> {
+  const catalog = await fetchNotificationCatalog();
+  return catalog.types;
 }
 
 export function parseNotificationId(value: unknown): number | null {

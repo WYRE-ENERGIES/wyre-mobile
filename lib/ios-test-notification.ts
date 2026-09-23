@@ -29,7 +29,7 @@ export async function scheduleIosTestNotification(): Promise<{ scheduled: boolea
       body: 'PV production dropped to 0 kW on Lekki Solar Site. This is local test data, not a live Firebase push.',
       data: {
         source: 'ios_local_test',
-        category: 'inverter',
+        category: 'solar',
         severity: 'warning',
         branch_name: 'Lekki Solar Site',
       },

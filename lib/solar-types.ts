@@ -1,13 +1,21 @@
-export type YieldPeriod = {
+export type YieldPeriodKey = 'today' | 'monthly' | 'total';
+
+export type EnergyYieldPeriod = {
   kwh: number;
   cost: number;
+  period_label?: string;
 };
 
-export type YieldTab = {
-  total: YieldPeriod;
-  today: YieldPeriod;
-  monthly: YieldPeriod;
+export type BatteryYieldPeriod = {
+  charge_kwh: number;
+  charge_cost: number;
+  discharge_kwh: number;
+  discharge_cost: number;
+  period_label?: string;
 };
+
+export type EnergyYieldTab = Record<YieldPeriodKey, EnergyYieldPeriod>;
+export type BatteryYieldTab = Record<YieldPeriodKey, BatteryYieldPeriod>;
 
 export type SolarOverview = {
   weather: {
@@ -24,10 +32,13 @@ export type SolarOverview = {
 };
 
 export type SolarYield = {
-  generation: YieldTab;
-  battery: YieldTab;
-  load: YieldTab;
-  grid: YieldTab;
+  branch_id?: number;
+  as_of?: string;
+  blended_cost?: number;
+  generation: EnergyYieldTab;
+  battery: BatteryYieldTab;
+  load: EnergyYieldTab;
+  grid: EnergyYieldTab;
 };
 
 export type SiteNode = {
@@ -55,24 +66,26 @@ export const YIELD_TABS: { key: YieldTabKey; label: string }[] = [
   { key: 'grid', label: 'Grid' },
 ];
 
-export const YIELD_PERIOD_LABELS: Record<YieldTabKey, Record<keyof YieldTab, string>> = {
+export const YIELD_PERIOD_KEYS: YieldPeriodKey[] = ['today', 'monthly', 'total'];
+
+export const YIELD_PERIOD_LABELS: Record<YieldTabKey, Record<YieldPeriodKey, string>> = {
   generation: {
-    total: 'Total Yield',
+    total: 'All time yield',
     today: "Today's yield",
     monthly: "Current Month's yield",
   },
   battery: {
-    total: 'Total',
+    total: 'All time',
     today: 'Today',
     monthly: 'Current Month',
   },
   load: {
-    total: 'Consumption',
+    total: 'All time consumption',
     today: "Today's Energy",
     monthly: 'Current Month',
   },
   grid: {
-    total: 'Import',
+    total: 'All time import',
     today: "Today's Energy",
     monthly: 'Current Month',
   },

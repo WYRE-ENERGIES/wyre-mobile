@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import {
-  defaultScorecardDateRange,
-  fetchScorecardDashboard,
-} from '@/lib/scorecard-api';
+import { fetchScorecardDashboard, scorecardRequestError } from '@/lib/scorecard-api';
 import { buildScorecardMetrics, type ScorecardMetric } from '@/lib/scorecard-metrics';
 
 type ScorecardState = {
@@ -48,23 +45,20 @@ export function useScorecard(branchId: number | null) {
       }));
 
       try {
-        const dateRange = defaultScorecardDateRange();
-        const data = await fetchScorecardDashboard(branchId, dateRange);
+        const { data, failedKeys } = await fetchScorecardDashboard(branchId);
         setState({
-          metrics: buildScorecardMetrics(data),
+          metrics: buildScorecardMetrics(data, failedKeys),
           loading: false,
           refreshing: false,
           error: null,
           dateLabel: currentMonthLabel(),
         });
       } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : 'Unable to load scorecard.';
         setState((current) => ({
           ...current,
           loading: false,
           refreshing: false,
-          error: message,
+          error: scorecardRequestError(error),
         }));
       }
     },
