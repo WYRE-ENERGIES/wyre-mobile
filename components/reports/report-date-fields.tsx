@@ -1,4 +1,3 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { useState } from 'react';
@@ -13,7 +12,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { WyreColors } from '@/constants/theme';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useAppTheme } from '@/context/theme-context';
 import { formatDisplayDate, parseISODate, toISODate } from '@/lib/report/helpers';
 
 type DateFieldProps = {
@@ -31,36 +31,49 @@ export function ReportDateField({
   maximumDate,
   style,
 }: DateFieldProps) {
+  const { colors, isDark } = useAppTheme();
   const [open, setOpen] = useState(false);
   const selected = parseISODate(value) || new Date();
 
   return (
     <View style={[styles.field, style]}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.textOnCardSecondary }]}>{label}</Text>
       <Pressable
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.selector, pressed && styles.pressed]}>
-        <Text style={[styles.selectorText, !value && styles.placeholder]}>
+        style={({ pressed }) => [
+          styles.selector,
+          { backgroundColor: colors.surfaceMuted, borderColor: colors.border },
+          pressed && styles.pressed,
+        ]}>
+        <Text
+          style={[
+            styles.selectorText,
+            { color: value ? colors.textOnCard : colors.textOnCardSecondary },
+          ]}>
           {value ? formatDisplayDate(value) : 'Select date'}
         </Text>
-        <MaterialIcons name="calendar-today" size={18} color={WyreColors.purple} />
+        <IconSymbol name="calendar" size={18} color={colors.accent} />
       </Pressable>
 
       {open ? (
         Platform.OS === 'ios' ? (
           <Modal transparent animationType="slide" visible={open} onRequestClose={() => setOpen(false)}>
-            <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)} />
-            <View style={styles.sheet}>
+            <Pressable
+              style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}
+              onPress={() => setOpen(false)}
+            />
+            <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
               <View style={styles.sheetHeader}>
-                <Text style={styles.sheetTitle}>{label}</Text>
+                <Text style={[styles.sheetTitle, { color: colors.textOnCard }]}>{label}</Text>
                 <Pressable onPress={() => setOpen(false)}>
-                  <Text style={styles.done}>Done</Text>
+                  <Text style={[styles.done, { color: colors.accent }]}>Done</Text>
                 </Pressable>
               </View>
               <DateTimePicker
                 value={selected}
                 mode="date"
                 display="spinner"
+                themeVariant={isDark ? 'dark' : 'light'}
                 maximumDate={maximumDate}
                 onChange={(_, date) => {
                   if (date) onChange(toISODate(date));
@@ -102,43 +115,90 @@ export function ReportMonthYearFields({
   monthOptions,
   yearOptions,
 }: MonthYearProps) {
+  const { colors, isDark } = useAppTheme();
+  const [activeField, setActiveField] = useState<'month' | 'year' | null>(null);
+  const selectedMonth = monthOptions.find((option) => option.value === month)?.label ?? String(month);
+
   return (
-    <View style={styles.row}>
-      <View style={[styles.field, styles.half]}>
-        <Text style={styles.label}>Year</Text>
-        <View style={styles.pickerShell}>
-          <Picker
-            selectedValue={year}
-            onValueChange={(value) => onChangeYear(Number(value))}
-            style={styles.picker}
-            itemStyle={styles.pickerItem}>
-            {yearOptions.map((option) => (
-              <Picker.Item key={option} label={String(option)} value={option} />
-            ))}
-          </Picker>
+    <>
+      <View style={styles.row}>
+        <View style={[styles.field, styles.half]}>
+          <Text style={[styles.label, { color: colors.textOnCardSecondary }]}>Month</Text>
+          <Pressable
+            onPress={() => setActiveField('month')}
+            style={({ pressed }) => [
+              styles.selector,
+              { backgroundColor: colors.surfaceMuted, borderColor: colors.border },
+              pressed && styles.pressed,
+            ]}>
+            <Text style={[styles.selectorText, { color: colors.textOnCard }]}>{selectedMonth}</Text>
+            <IconSymbol name="calendar" size={18} color={colors.accent} />
+          </Pressable>
+        </View>
+        <View style={[styles.field, styles.half]}>
+          <Text style={[styles.label, { color: colors.textOnCardSecondary }]}>Year</Text>
+          <Pressable
+            onPress={() => setActiveField('year')}
+            style={({ pressed }) => [
+              styles.selector,
+              { backgroundColor: colors.surfaceMuted, borderColor: colors.border },
+              pressed && styles.pressed,
+            ]}>
+            <Text style={[styles.selectorText, { color: colors.textOnCard }]}>{year}</Text>
+            <IconSymbol name="calendar" size={18} color={colors.accent} />
+          </Pressable>
         </View>
       </View>
-      <View style={[styles.field, styles.half]}>
-        <Text style={styles.label}>Month</Text>
-        <View style={styles.pickerShell}>
+
+      <Modal
+        transparent
+        animationType="slide"
+        visible={activeField !== null}
+        onRequestClose={() => setActiveField(null)}>
+        <Pressable
+          style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}
+          onPress={() => setActiveField(null)}
+        />
+        <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
+          <View style={styles.sheetHeader}>
+            <Text style={[styles.sheetTitle, { color: colors.textOnCard }]}>
+              Select {activeField}
+            </Text>
+            <Pressable onPress={() => setActiveField(null)}>
+              <Text style={[styles.done, { color: colors.accent }]}>Done</Text>
+            </Pressable>
+          </View>
           <Picker
-            selectedValue={month}
-            onValueChange={(value) => onChangeMonth(Number(value))}
-            style={styles.picker}
-            itemStyle={styles.pickerItem}>
-            {monthOptions
-              .filter((option) => !option.disabled)
-              .map((option) => (
+            selectedValue={activeField === 'month' ? month : year}
+            onValueChange={(value) => {
+              if (activeField === 'month') onChangeMonth(Number(value));
+              if (activeField === 'year') onChangeYear(Number(value));
+            }}
+            style={[styles.modalPicker, { color: colors.textOnCard }]}
+            itemStyle={[styles.pickerItem, { color: colors.textOnCard }]}>
+            {activeField === 'month'
+              ? monthOptions
+                  .filter((option) => !option.disabled)
+                  .map((option) => (
+                    <Picker.Item
+                      key={option.value}
+                      label={option.label}
+                      value={option.value}
+                      color={isDark ? colors.textOnCard : undefined}
+                    />
+                  ))
+              : yearOptions.map((option) => (
                 <Picker.Item
-                  key={option.value}
-                  label={option.label}
-                  value={option.value}
+                  key={option}
+                  label={String(option)}
+                  value={option}
+                  color={isDark ? colors.textOnCard : undefined}
                 />
               ))}
           </Picker>
         </View>
-      </View>
-    </View>
+      </Modal>
+    </>
   );
 }
 
@@ -149,14 +209,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '600',
-    color: WyreColors.textSecondary,
   },
   selector: {
     minHeight: 48,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: 'rgba(92, 18, 167, 0.14)',
-    backgroundColor: '#F5F0FA',
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -165,20 +222,14 @@ const styles = StyleSheet.create({
   selectorText: {
     fontSize: 15,
     fontWeight: '500',
-    color: WyreColors.textPrimary,
-  },
-  placeholder: {
-    color: '#9CA3AF',
   },
   pressed: {
     opacity: 0.85,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(17, 24, 39, 0.35)',
   },
   sheet: {
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     paddingBottom: 20,
@@ -194,12 +245,10 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: WyreColors.textPrimary,
   },
   done: {
     fontSize: 16,
     fontWeight: '600',
-    color: WyreColors.purple,
   },
   row: {
     flexDirection: 'row',
@@ -208,24 +257,12 @@ const styles = StyleSheet.create({
   half: {
     flex: 1,
   },
-  pickerShell: {
-    height: 100,
-    borderRadius: 12,
-    backgroundColor: 'linear-gradient(180deg, #F5F0FA 0%, #F5F0FA 100%)',
-    overflow: 'hidden',
-    justifyContent: 'center',
-  },
-  picker: {
+  modalPicker: {
     width: '100%',
-    height: 120,
-    color: WyreColors.textPrimary,
+    height: 190,
   },
   pickerItem: {
     fontSize: 16,
-    height: 120,
-  },
-  helper: {
-    fontSize: 12,
-    color: WyreColors.textSecondary,
+    height: 190,
   },
 });

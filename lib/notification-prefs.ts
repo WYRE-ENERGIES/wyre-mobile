@@ -1,24 +1,16 @@
-import * as Notifications from 'expo-notifications';
 import { Linking, Platform } from 'react-native';
 
 import { getNotificationsEnabled, setNotificationsEnabled } from '@/config/storage';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+import { disablePushAndUnregister, registerCurrentDeviceForPush } from '@/lib/push-notifications';
 
 export async function loadNotificationPreference(): Promise<boolean> {
   return getNotificationsEnabled();
 }
 
 /**
- * Toggle local notification preference.
- * Enabling also requests OS permission; if denied, preference stays off.
+ * Toggle notification preference.
+ * Android registers FCM with the backend when enabled.
+ * iOS remote push waits for ios_push_ready; local iOS tests use Settings.
  */
 export async function updateNotificationPreference(enabled: boolean): Promise<{
   enabled: boolean;
@@ -26,6 +18,7 @@ export async function updateNotificationPreference(enabled: boolean): Promise<{
 }> {
   if (!enabled) {
     await setNotificationsEnabled(false);
+    await disablePushAndUnregister();
     return { enabled: false };
   }
 
@@ -34,20 +27,13 @@ export async function updateNotificationPreference(enabled: boolean): Promise<{
     return { enabled: true };
   }
 
-  const current = await Notifications.getPermissionsAsync();
-  let status = current.status;
-
-  if (status !== 'granted') {
-    const requested = await Notifications.requestPermissionsAsync();
-    status = requested.status;
-  }
-
-  if (status !== 'granted') {
+  await setNotificationsEnabled(true);
+  const result = await registerCurrentDeviceForPush({ force: true });
+  if (result.permissionDenied) {
     await setNotificationsEnabled(false);
     return { enabled: false, permissionDenied: true };
   }
 
-  await setNotificationsEnabled(true);
   return { enabled: true };
 }
 

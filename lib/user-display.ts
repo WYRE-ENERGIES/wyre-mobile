@@ -30,6 +30,17 @@ export function getUserDisplayName(userData: ProfileUserData): string {
   return asString(userData?.username) ?? asString(userData?.email) ?? 'User';
 }
 
+export function getUserProfilePhotoUrl(userData: ProfileUserData): string | null {
+  return (
+    asString(userData?.profile_photo_url) ??
+    asString(userData?.profile_photo) ??
+    asString(userData?.profile_image) ??
+    asString(userData?.avatar_url) ??
+    asString(userData?.avatar) ??
+    asString(userData?.photo_url)
+  );
+}
+
 export function getUserRoleLabel(userData: ProfileUserData): string | null {
   return asString(userData?.role_text);
 }
@@ -53,8 +64,7 @@ export function getClientType(userData: ProfileUserData): string | null {
 export function getBranchLabel(userData: ProfileUserData): string | null {
   return (
     asString(userData?.branch_name) ??
-    asString(userData?.branch) ??
-    (asString(userData?.branch_id) ? `Branch #${asString(userData?.branch_id)}` : null)
+    asString(userData?.branch)
   );
 }
 
@@ -73,13 +83,11 @@ export function getAccountFields(userData: ProfileUserData): ProfileField[] {
   const fields: ProfileField[] = [];
   const username = asString(userData?.username);
   const role = getUserRoleLabel(userData);
-  const userId = getUserId(userData);
   const solar = getSolarCustomerLabel(userData);
   const email = getUserEmail(userData);
 
   if (username) fields.push({ label: 'Username', value: username });
   if (role) fields.push({ label: 'Role', value: role });
-  if (userId) fields.push({ label: 'User ID', value: userId });
   if (solar) fields.push({ label: 'Solar Customer', value: solar });
   if (email) fields.push({ label: 'Email', value: email });
 
