@@ -1,5 +1,6 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert as RNAlert,
@@ -10,6 +11,9 @@ import {
   StyleSheet,
   Text,
   View,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -35,6 +39,18 @@ import {
 type ListItem =
   | { type: 'header'; key: string; title: string }
   | { type: 'alert'; key: string; alert: WyreAlert; isLast: boolean };
+
+const SCROLL_EDGE = 8;
+const ARROW_WIDTH = 44;
+
+function fadeColor(hex: string, alpha: number) {
+  const raw = hex.replace('#', '');
+  const full = raw.length === 3 ? raw.split('').map((char) => char + char).join('') : raw;
+  const red = parseInt(full.slice(0, 2), 16);
+  const green = parseInt(full.slice(2, 4), 16);
+  const blue = parseInt(full.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
 
 function flattenSections(sections: AlertSection[]): ListItem[] {
   return sections.flatMap((section) => [
@@ -62,6 +78,13 @@ export default function AlertsScreen() {
   } = useNotificationInbox();
   const [filter, setFilter] = useState<AlertFilter>('all');
   const [categories, setCategories] = useState<NotificationCategoryCatalogItem[]>([]);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const filtersRef = useRef<ScrollView>(null);
+  const scrollX = useRef(0);
+  const contentWidth = useRef(0);
+  const viewportWidth = useRef(0);
+  const chipLayouts = useRef<Partial<Record<AlertFilter, { x: number; width: number }>>>({});
   const items = useMemo(
     () => flattenSections(groupAlertsByDate(filterAlerts(alerts, filter))),
     [alerts, filter],
@@ -85,6 +108,55 @@ export default function AlertsScreen() {
       .then((catalog) => setCategories(catalog.categories))
       .catch(() => setCategories([]));
   }, []);
+
+  const syncScrollEdges = () => {
+    const maxOffset = contentWidth.current - viewportWidth.current;
+    const overflows = maxOffset > SCROLL_EDGE;
+    setCanScrollLeft(overflows && scrollX.current > SCROLL_EDGE);
+    setCanScrollRight(overflows && scrollX.current < maxOffset - SCROLL_EDGE);
+  };
+
+  const onFiltersScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollX.current = event.nativeEvent.contentOffset.x;
+    syncScrollEdges();
+  };
+
+  const onFiltersLayout = (event: LayoutChangeEvent) => {
+    viewportWidth.current = event.nativeEvent.layout.width;
+    syncScrollEdges();
+  };
+
+  const onFiltersContentSizeChange = (width: number) => {
+    contentWidth.current = width;
+    syncScrollEdges();
+  };
+
+  const scrollFiltersBy = (direction: -1 | 1) => {
+    const maxOffset = Math.max(0, contentWidth.current - viewportWidth.current);
+    if (maxOffset <= SCROLL_EDGE || viewportWidth.current <= 0) return;
+    const distance = Math.max(120, viewportWidth.current * 0.75);
+    const next = Math.min(maxOffset, Math.max(0, scrollX.current + direction * distance));
+    filtersRef.current?.scrollTo({ x: next, animated: true });
+  };
+
+  useEffect(() => {
+    const chip = chipLayouts.current[filter];
+    const viewport = viewportWidth.current;
+    if (!chip || viewport <= 0) return;
+    const maxOffset = Math.max(0, contentWidth.current - viewport);
+    const inset = ARROW_WIDTH;
+    let next = scrollX.current;
+    if (chip.x < scrollX.current + inset) {
+      next = chip.x - inset;
+    } else if (chip.x + chip.width > scrollX.current + viewport - inset) {
+      next = chip.x + chip.width - viewport + inset;
+    } else {
+      return;
+    }
+    next = Math.min(maxOffset, Math.max(0, next));
+    if (Math.abs(next - scrollX.current) < 1) return;
+    filtersRef.current?.scrollTo({ x: next, animated: true });
+  }, [filter]);
 
   const openAlert = (alert: WyreAlert) => {
     const serverId = alert.serverId ?? parseNotificationId(alert.id);
@@ -121,32 +193,83 @@ export default function AlertsScreen() {
       </View>
 
       <View style={styles.filtersBar}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersScroll}
-          contentContainerStyle={[styles.filtersContent, { backgroundColor: colors.surface }]}>
-          {chips.map((item) => {
-            const selected = filter === item.id;
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => setFilter(item.id)}
-                style={[
-                  styles.filter,
-                  selected && { backgroundColor: colors.surfaceMuted },
-                ]}>
-                <Text
+        <View style={styles.filtersFrame}>
+          <ScrollView
+            ref={filtersRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filtersScroll}
+            scrollEventThrottle={16}
+            onScroll={onFiltersScroll}
+            onLayout={onFiltersLayout}
+            onContentSizeChange={onFiltersContentSizeChange}
+            onScrollEndDrag={onFiltersScroll}
+            onMomentumScrollEnd={onFiltersScroll}
+            contentContainerStyle={[styles.filtersContent, { backgroundColor: colors.surface }]}>
+            {chips.map((item) => {
+              const selected = filter === item.id;
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => setFilter(item.id)}
+                  onLayout={(event) => {
+                    const { x, width } = event.nativeEvent.layout;
+                    chipLayouts.current[item.id] = { x, width };
+                  }}
                   style={[
-                    styles.filterText,
-                    { color: selected ? colors.textOnCard : colors.textOnCardSecondary },
+                    styles.filter,
+                    selected && { backgroundColor: colors.surfaceMuted },
                   ]}>
-                  {item.label}
-                </Text>
+                  <Text
+                    style={[
+                      styles.filterText,
+                      { color: selected ? colors.textOnCard : colors.textOnCardSecondary },
+                    ]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {canScrollLeft ? (
+            <View style={[styles.edge, styles.edgeLeft]} pointerEvents="box-none">
+              <LinearGradient
+                pointerEvents="none"
+                colors={[colors.surface, colors.surface, fadeColor(colors.surface, 0)]}
+                locations={[0, 0.42, 1]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.edgeFade}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Scroll categories left"
+                onPress={() => scrollFiltersBy(-1)}
+                style={({ pressed }) => [styles.arrowHit, pressed && styles.pressed]}>
+                <IconSymbol name="chevron.left" size={16} color={colors.textOnCardSecondary} />
               </Pressable>
-            );
-          })}
-        </ScrollView>
+            </View>
+          ) : null}
+          {canScrollRight ? (
+            <View style={[styles.edge, styles.edgeRight]} pointerEvents="box-none">
+              <LinearGradient
+                pointerEvents="none"
+                colors={[fadeColor(colors.surface, 0), colors.surface, colors.surface]}
+                locations={[0, 0.58, 1]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.edgeFade}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Scroll categories right"
+                onPress={() => scrollFiltersBy(1)}
+                style={({ pressed }) => [styles.arrowHit, pressed && styles.pressed]}>
+                <IconSymbol name="chevron.right" size={16} color={colors.textOnCardSecondary} />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
       </View>
 
       {loading ? (
@@ -229,8 +352,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 8,
   },
+  filtersFrame: {
+    position: 'relative',
+  },
   filtersScroll: {
     flexGrow: 0,
+  },
+  edge: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: ARROW_WIDTH,
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  edgeLeft: {
+    left: 0,
+    alignItems: 'flex-start',
+  },
+  edgeRight: {
+    right: 0,
+    alignItems: 'flex-end',
+  },
+  edgeFade: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  arrowHit: {
+    width: ARROW_WIDTH,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filtersContent: {
     flexDirection: 'row',
