@@ -1,13 +1,14 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import type { SymbolViewProps } from 'expo-symbols';
 import { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { WyreColors } from '@/constants/theme';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useAppTheme } from '@/context/theme-context';
 
 type SectionCardProps = {
   title: string;
   info?: string;
-  icon?: keyof typeof MaterialIcons.glyphMap;
+  icon?: SymbolViewProps['name'];
   children: ReactNode;
   right?: ReactNode;
 };
@@ -15,26 +16,27 @@ type SectionCardProps = {
 export function ReportSectionCard({
   title,
   info,
-  icon = 'bolt',
+  icon = 'bolt.fill',
   children,
   right,
 }: SectionCardProps) {
+  const { colors } = useAppTheme();
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface }]}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <View style={styles.icon}>
-            <MaterialIcons name={icon} size={18} color="#FFFFFF" />
+            <IconSymbol name={icon} size={18} color="#FFFFFF" />
           </View>
           <View style={styles.titleWrap}>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={[styles.title, { color: colors.textOnCard }]}>{title}</Text>
             {right}
           </View>
         </View>
         {info ? (
           <View style={styles.infoRow}>
-            <MaterialIcons name="info-outline" size={16} color="#6B7280" />
-            <Text style={styles.info}>{info}</Text>
+            <IconSymbol name="info.circle" size={16} color="#6B7280" />
+            <Text style={[styles.info, { color: colors.textOnCardSecondary }]}>{info}</Text>
           </View>
         ) : null}
       </View>
@@ -46,12 +48,15 @@ export function ReportSectionCard({
 type KvProps = { label: string; value: string };
 
 export function ReportKvGrid({ items }: { items: KvProps[] }) {
+  const { colors } = useAppTheme();
   return (
     <View style={styles.kvGrid}>
       {items.map((item) => (
-        <View key={`${item.label}-${item.value}`} style={styles.kvItem}>
-          <Text style={styles.kvLabel}>{item.label}</Text>
-          <Text style={styles.kvValue}>{item.value}</Text>
+        <View
+          key={`${item.label}-${item.value}`}
+          style={[styles.kvItem, { backgroundColor: colors.surfaceMuted }]}>
+          <Text style={[styles.kvLabel, { color: colors.textOnCardSecondary }]}>{item.label}</Text>
+          <Text style={[styles.kvValue, { color: colors.textOnCard }]}>{item.value}</Text>
         </View>
       ))}
     </View>
@@ -65,15 +70,26 @@ export function ReportTable({
   headers: string[];
   rows: string[][];
 }) {
+  const { colors } = useAppTheme();
   if (rows.length === 0) {
-    return <Text style={styles.empty}>No data for this section.</Text>;
+    return (
+      <Text style={[styles.empty, { color: colors.textOnCardSecondary }]}>
+        No data for this section.
+      </Text>
+    );
   }
 
   return (
-    <View style={styles.table}>
-      <View style={styles.tableHeader}>
+    <View style={[styles.table, { borderColor: colors.border }]}>
+      <View style={[styles.tableHeader, { backgroundColor: colors.surfaceMuted }]}>
         {headers.map((header) => (
-          <Text key={header} style={[styles.tableCell, styles.tableHeaderCell]}>
+          <Text
+            key={header}
+            style={[
+              styles.tableCell,
+              styles.tableHeaderCell,
+              { color: colors.textOnCardSecondary },
+            ]}>
             {header}
           </Text>
         ))}
@@ -81,9 +97,15 @@ export function ReportTable({
       {rows.map((row, index) => (
         <View
           key={`row-${index}`}
-          style={[styles.tableRow, index === rows.length - 1 && styles.tableRowLast]}>
+          style={[
+            styles.tableRow,
+            { borderTopColor: colors.border },
+            index === rows.length - 1 && styles.tableRowLast,
+          ]}>
           {row.map((cell, cellIndex) => (
-            <Text key={`${index}-${cellIndex}`} style={styles.tableCell}>
+            <Text
+              key={`${index}-${cellIndex}`}
+              style={[styles.tableCell, { color: colors.textOnCard }]}>
               {cell}
             </Text>
           ))}
@@ -95,7 +117,6 @@ export function ReportTable({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 16,
     gap: 14,
@@ -123,7 +144,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
   },
   infoRow: {
     flexDirection: 'row',
@@ -134,7 +154,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     lineHeight: 17,
-    color: '#515151',
   },
   kvGrid: {
     flexDirection: 'row',
@@ -143,7 +162,6 @@ const styles = StyleSheet.create({
   },
   kvItem: {
     width: '47%',
-    backgroundColor: '#F7F8FB',
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 10,
@@ -151,28 +169,23 @@ const styles = StyleSheet.create({
   },
   kvLabel: {
     fontSize: 11,
-    color: WyreColors.textSecondary,
     fontWeight: '500',
   },
   kvValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: WyreColors.textPrimary,
   },
   table: {
     borderWidth: 1,
-    borderColor: '#E8EAF0',
     borderRadius: 10,
     overflow: 'hidden',
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F8',
   },
   tableRow: {
     flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E8EAF0',
   },
   tableRowLast: {},
   tableCell: {
@@ -180,14 +193,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 10,
     fontSize: 11,
-    color: WyreColors.textPrimary,
   },
   tableHeaderCell: {
     fontWeight: '700',
-    color: WyreColors.textSecondary,
   },
   empty: {
     fontSize: 13,
-    color: WyreColors.textSecondary,
   },
 });

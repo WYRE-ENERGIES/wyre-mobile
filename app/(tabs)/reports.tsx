@@ -1,51 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MonthlyReportView } from '@/components/reports/monthly-report-view';
+import { ReportTypeTabs, SendReportCard } from '@/components/reports/report-controls';
+import { ReportDateField, ReportMonthYearFields } from '@/components/reports/report-date-fields';
+import { ReportSummaryView } from '@/components/reports/report-summary-view';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { DashboardScreen } from '@/components/wyre/dashboard-screen';
+import { NotificationBellButton } from '@/components/wyre/notification-bell-button';
+import { useAppTheme } from '@/context/theme-context';
+import { getBranchId } from '@/lib/auth-user';
 import {
-  ReportTypeTabs,
-  SendReportCard,
-} from '@/components/reports/report-controls';
-import {
-  ReportDateField,
-  ReportMonthYearFields,
-} from '@/components/reports/report-date-fields';
-import { ReportHtmlPreview } from '@/components/reports/report-html-preview';
-import { AppHeader } from '@/components/wyre/app-header';
-import { UserAvatarButton } from '@/components/wyre/user-avatar-button';
-import { WyreColors } from '@/constants/theme';
-import {
-  DUMMY_MONTHLY_REPORT,
   buildReportContext,
   getPreviousMonth,
   monthLabel,
 } from '@/lib/report/helpers';
-import {
-  fetchMonthlyReportData,
-  previewReportHtml,
-  sendReportEmail,
-} from '@/lib/report/report-api';
+import { fetchMonthlyReportData, sendReportEmail } from '@/lib/report/report-api';
 import type { MonthlyReportModel, ReportType } from '@/lib/report/types';
+import { getBranchLabel } from '@/lib/user-display';
 import { useAppSelector } from '@/redux/hooks';
-
-const TAB_BAR_CLEARANCE = 96;
 
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
   const userData = useAppSelector((state) => state.auth.userData);
-  const branchId =
-    typeof userData?.branch_id === 'number' || typeof userData?.branch_id === 'string'
-      ? userData.branch_id
-      : null;
-
+  const branchId = getBranchId(userData);
+  const branchName = getBranchLabel(userData);
   const previous = getPreviousMonth();
   const [reportType, setReportType] = useState<ReportType>('monthly');
   const [date, setDate] = useState('');
@@ -53,18 +33,13 @@ export default function ReportsScreen() {
   const [endDate, setEndDate] = useState('');
   const [month, setMonth] = useState(previous.month);
   const [year, setYear] = useState(previous.year);
-
-  const [monthlyReport, setMonthlyReport] =
-    useState<MonthlyReportModel>(DUMMY_MONTHLY_REPORT);
+  const [monthlyReport, setMonthlyReport] = useState<MonthlyReportModel | null>(null);
   const [monthlyLoading, setMonthlyLoading] = useState(false);
-  const [monthlyNote, setMonthlyNote] = useState(
-    'Sample Actual Report (matches dashboard UI).',
+  const [monthlyError, setMonthlyError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+  const [recipient, setRecipient] = useState(
+    typeof userData?.email === 'string' ? userData.email : '',
   );
-
-  const [previewHtml, setPreviewHtml] = useState('');
-  const [previewLoading, setPreviewLoading] = useState(false);
-
-  const [recipient, setRecipient] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
   const [sendMessage, setSendMessage] = useState('');
   const [sendError, setSendError] = useState('');
@@ -85,99 +60,52 @@ export default function ReportsScreen() {
 
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
-    return Array.from({ length: 8 }, (_, i) => currentYear - i);
+    return Array.from({ length: 8 }, (_, index) => currentYear - index);
   }, []);
 
   const monthOptions = useMemo(() => {
     const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
-    return Array.from({ length: 12 }, (_, i) => {
-      const value = i + 1;
+    return Array.from({ length: 12 }, (_, index) => {
+      const value = index + 1;
       return {
         value,
         label: monthLabel(value),
-        disabled: year === currentYear && value > currentMonth,
+        disabled: year === now.getFullYear() && value > now.getMonth() + 1,
       };
     });
   }, [year]);
 
   useEffect(() => {
-    if (reportType !== 'monthly') return;
-
-    let cancelled = false;
-
-    const load = async () => {
-      setMonthlyReport({
-        ...DUMMY_MONTHLY_REPORT,
-        monthLabel: monthLabel(month),
-        year,
-        currentEfficiency: {
-          ...DUMMY_MONTHLY_REPORT.currentEfficiency,
-          label: `${monthLabel(month)} Month Efficiency`,
-        },
-      });
-
-      if (!branchId) {
-        setMonthlyNote(
-          'Sample Actual Report (matches dashboard UI). Branch context unlocks live data.',
-        );
-        return;
-      }
-
-      setMonthlyLoading(true);
-      try {
-        const data = await fetchMonthlyReportData(branchId, month, year);
-        if (cancelled) return;
-        setMonthlyReport({
-          ...data,
-          monthLabel: data.monthLabel || monthLabel(month),
-          year: data.year || year,
-        });
-        setMonthlyNote('');
-      } catch {
-        if (cancelled) return;
-        setMonthlyNote('Could not load live report. Showing sample Actual Report UI.');
-      } finally {
-        if (!cancelled) setMonthlyLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [reportType, branchId, month, year]);
-
-  useEffect(() => {
-    if (reportType === 'monthly') {
-      setPreviewHtml('');
+    if (reportType !== 'monthly' || !branchId) {
+      setMonthlyReport(null);
       return;
     }
-
-    if (!reportContext) {
-      setPreviewHtml('');
-      return;
-    }
-
     let cancelled = false;
-    setPreviewLoading(true);
-
-    previewReportHtml(reportContext)
-      .then((html) => {
-        if (!cancelled) setPreviewHtml(html);
+    setMonthlyLoading(true);
+    setMonthlyError('');
+    fetchMonthlyReportData(branchId, month, year)
+      .then((report) => {
+        if (!cancelled) {
+          setMonthlyReport({
+            ...report,
+            monthLabel: report.monthLabel || monthLabel(month),
+            year: report.year || year,
+          });
+        }
       })
       .catch(() => {
-        if (!cancelled) setPreviewHtml('');
+        if (!cancelled) {
+          setMonthlyReport(null);
+          setMonthlyError('We could not prepare this summary. Try another month or reload.');
+        }
       })
       .finally(() => {
-        if (!cancelled) setPreviewLoading(false);
+        if (!cancelled) setMonthlyLoading(false);
       });
-
     return () => {
       cancelled = true;
     };
-  }, [reportType, reportContext]);
+  }, [reportType, branchId, month, year, reloadKey]);
 
   const onSend = async () => {
     if (!reportContext) return;
@@ -186,69 +114,59 @@ export default function ReportsScreen() {
     setSendError('');
     try {
       await sendReportEmail(reportContext, recipient.trim());
-      const success = 'Report sent successfully.';
-      setSendMessage(success);
-      setRecipient('');
-      Alert.alert('Report sent', success);
+      setSendMessage(`Sent to ${recipient.trim()}`);
     } catch {
-      const failure = 'Failed to send report. Check the recipient and try again.';
-      setSendError(failure);
-      Alert.alert('Send failed', failure);
+      const message = 'Couldn’t send the report. Please try again.';
+      setSendError(message);
     } finally {
       setSendLoading(false);
     }
   };
 
   return (
-    <View style={styles.root}>
-      <AppHeader rightAction={<UserAvatarButton />} />
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + TAB_BAR_CLEARANCE },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
-        <View style={styles.pageHeader}>
-          <Text style={styles.title}>Reports</Text>
-          <Text style={styles.subtitle}>
-            Generate daily, periodic, or monthly energy reports for your branch.
+    <DashboardScreen>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.title, { color: colors.textOnPage }]}>Reports</Text>
+          <Text style={[styles.subtitle, { color: colors.textOnPageMuted }]}>
+            {branchName ?? 'Your branch'} · clear energy insights
           </Text>
         </View>
+        <NotificationBellButton />
+      </View>
 
-        <View style={styles.controlsCard}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}>
+        <View style={[styles.controls, { backgroundColor: colors.surface }]}>
           <ReportTypeTabs value={reportType} onChange={setReportType} />
-
           {reportType === 'daily' ? (
             <ReportDateField
-              label="Select date"
+              label="Report date"
               value={date}
               onChange={setDate}
               maximumDate={new Date()}
             />
           ) : null}
-
           {reportType === 'periodic' ? (
-            <View style={styles.rangeCol}>
+            <View style={styles.range}>
               <ReportDateField
-                label="Start date"
+                label="From"
                 value={startDate}
                 onChange={setStartDate}
                 maximumDate={new Date()}
-                style={styles.dateField}
+                style={styles.rangeField}
               />
               <ReportDateField
-                label="End date"
+                label="To"
                 value={endDate}
                 onChange={setEndDate}
                 maximumDate={new Date()}
-                style={styles.dateField}
+                style={styles.rangeField}
               />
             </View>
           ) : null}
-
           {reportType === 'monthly' ? (
             <ReportMonthYearFields
               month={month}
@@ -261,27 +179,45 @@ export default function ReportsScreen() {
           ) : null}
         </View>
 
-        <View style={styles.section}>
-          {reportType === 'monthly' ? (
-            <View style={styles.gap}>
-              {monthlyNote ? <Text style={styles.sampleNote}>{monthlyNote}</Text> : null}
-              {monthlyLoading ? (
-                <View style={styles.loadingBox}>
-                  <ActivityIndicator color={WyreColors.purple} />
-                  <Text style={styles.hint}>Loading report data…</Text>
-                </View>
-              ) : (
-                <MonthlyReportView report={monthlyReport} />
-              )}
+        {reportType === 'monthly' ? (
+          monthlyLoading ? (
+            <View style={[styles.state, { backgroundColor: colors.surface }]}>
+              <ActivityIndicator color={colors.accent} />
+              <Text style={[styles.stateBody, { color: colors.textOnCardSecondary }]}>
+                Reading your report…
+              </Text>
             </View>
+          ) : monthlyReport ? (
+            <ReportSummaryView report={monthlyReport} />
           ) : (
-            <ReportHtmlPreview
-              html={previewHtml}
-              loading={previewLoading}
-              emptyMessage="Pick dates with the calendar to preview the emailed report."
-            />
-          )}
-        </View>
+            <View style={[styles.state, { backgroundColor: colors.surface }]}>
+              <IconSymbol name="chart.bar" size={28} color={colors.textOnCardSecondary} />
+              <Text style={[styles.stateTitle, { color: colors.textOnCard }]}>
+                Summary unavailable
+              </Text>
+              <Text style={[styles.stateBody, { color: colors.textOnCardSecondary }]}>
+                {monthlyError || 'Select a branch and month to view its summary.'}
+              </Text>
+              <Pressable
+                onPress={() => setReloadKey((value) => value + 1)}
+                style={[styles.retry, { backgroundColor: colors.surfaceMuted }]}>
+                <Text style={[styles.retryText, { color: colors.textOnCard }]}>Try again</Text>
+              </Pressable>
+            </View>
+          )
+        ) : (
+          <View style={[styles.deliveryNote, { backgroundColor: colors.accentMuted }]}>
+            <IconSymbol name="info.circle" size={19} color={colors.accent} />
+            <View style={styles.deliveryCopy}>
+              <Text style={[styles.deliveryTitle, { color: colors.textOnPage }]}>
+                Full report by email
+              </Text>
+              <Text style={[styles.deliveryBody, { color: colors.textOnPageMuted }]}>
+                Select the date range, then send the detailed report below.
+              </Text>
+            </View>
+          </View>
+        )}
 
         <SendReportCard
           reportContext={reportContext}
@@ -297,85 +233,39 @@ export default function ReportsScreen() {
           error={sendError}
         />
       </ScrollView>
-    </View>
+    </DashboardScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: WyreColors.pageBg,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 16,
-  },
-  pageHeader: {
-    gap: 4,
-    paddingHorizontal: 8,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: WyreColors.textPrimary,
-    letterSpacing: -0.4,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: WyreColors.textSecondary,
-  },
-  controlsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    gap: 14,
-    borderWidth: 1,
-    borderColor: WyreColors.border,
-  },
-  rangeCol: {
-    gap: 12,
-    display: 'flex',
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 14,
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  headerCopy: { flex: 1, gap: 3 },
+  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.6 },
+  subtitle: { fontSize: 13 },
+  content: { paddingHorizontal: 16, gap: 14 },
+  controls: { borderRadius: 20, padding: 12, gap: 13 },
+  range: { flexDirection: 'row', gap: 10 },
+  rangeField: { flex: 1 },
+  state: {
+    minHeight: 190,
+    borderRadius: 22,
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-  },
-  dateField: {
-    flex: 1,
-  },
-  hint: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: WyreColors.textSecondary,
-  },
-  section: {
-    gap: 10,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: WyreColors.textPrimary,
-    paddingHorizontal: 4,
-  },
-  gap: {
     gap: 8,
   },
-  loadingBox: {
-    minHeight: 180,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  sampleNote: {
-    fontSize: 12,
-    color: WyreColors.textSecondary,
-    paddingHorizontal: 4,
-  },
+  stateTitle: { fontSize: 17, fontWeight: '800' },
+  stateBody: { fontSize: 13, lineHeight: 19, textAlign: 'center' },
+  retry: { minHeight: 40, marginTop: 5, borderRadius: 12, paddingHorizontal: 16, justifyContent: 'center' },
+  retryText: { fontSize: 12, fontWeight: '800' },
+  deliveryNote: { borderRadius: 18, padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  deliveryCopy: { flex: 1 },
+  deliveryTitle: { fontSize: 14, fontWeight: '800' },
+  deliveryBody: { marginTop: 3, fontSize: 12, lineHeight: 17 },
 });

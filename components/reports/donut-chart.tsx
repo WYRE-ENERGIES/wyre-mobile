@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
+import { useAppTheme } from '@/context/theme-context';
+
 type DonutSlice = {
   label: string;
   value: number;
@@ -12,9 +14,18 @@ type DonutChartProps = {
   slices: DonutSlice[];
   size?: number;
   strokeWidth?: number;
+  centerTitle?: string;
+  centerValue?: string;
 };
 
-export function DonutChart({ slices, size = 200, strokeWidth = 42 }: DonutChartProps) {
+export function DonutChart({
+  slices,
+  size = 200,
+  strokeWidth = 42,
+  centerTitle,
+  centerValue,
+}: DonutChartProps) {
+  const { colors } = useAppTheme();
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const total = slices.reduce((sum, slice) => sum + slice.value, 0);
@@ -23,7 +34,7 @@ export function DonutChart({ slices, size = 200, strokeWidth = 42 }: DonutChartP
     if (total <= 0) {
       return [
         {
-          color: '#E5E7EB',
+          color: colors.border,
           dash: `${circumference} ${circumference}`,
           offset: 0,
           percent: 0,
@@ -46,7 +57,7 @@ export function DonutChart({ slices, size = 200, strokeWidth = 42 }: DonutChartP
         offset += length;
         return arc;
       });
-  }, [slices, total, circumference]);
+  }, [slices, total, circumference, colors.border]);
 
   const centerLabels = arcs
     .filter((arc) => arc.percent >= 5)
@@ -74,11 +85,26 @@ export function DonutChart({ slices, size = 200, strokeWidth = 42 }: DonutChartP
         </G>
       </Svg>
       <View style={styles.centerLabels} pointerEvents="none">
-        {centerLabels.map((label) => (
-          <Text key={label} style={styles.centerLabel}>
-            {label}
-          </Text>
-        ))}
+        {centerTitle || centerValue ? (
+          <>
+            {centerTitle ? (
+              <Text style={[styles.centerTitle, { color: colors.textOnCardSecondary }]}>
+                {centerTitle}
+              </Text>
+            ) : null}
+            {centerValue ? (
+              <Text style={[styles.centerValue, { color: colors.textOnCard }]}>
+                {centerValue}
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          centerLabels.map((label) => (
+            <Text key={label} style={[styles.centerLabel, { color: colors.textOnCard }]}>
+              {label}
+            </Text>
+          ))
+        )}
       </View>
     </View>
   );
@@ -92,8 +118,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   centerLabel: {
-    color: '#111827',
     fontSize: 13,
     fontWeight: '700',
+  },
+  centerTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  centerValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
   },
 });

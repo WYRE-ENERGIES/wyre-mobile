@@ -5,6 +5,8 @@ export const STORAGE_KEYS = {
   token: 'loggedWyreUser',
   currentUser: 'currentUser',
   notificationsEnabled: 'wyreNotificationsEnabled',
+  fcmDeviceToken: 'wyreFcmDeviceToken',
+  themeScheme: 'wyreThemeScheme',
 } as const;
 
 export type AuthTokenPair = {
@@ -46,9 +48,32 @@ export async function clearAuthStorage(): Promise<void> {
 
 export async function getNotificationsEnabled(): Promise<boolean> {
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.notificationsEnabled);
+  if (raw == null) return true;
   return raw === 'true';
 }
 
 export async function setNotificationsEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEYS.notificationsEnabled, enabled ? 'true' : 'false');
+}
+
+export async function getStoredFcmToken(): Promise<string | null> {
+  return AsyncStorage.getItem(STORAGE_KEYS.fcmDeviceToken);
+}
+
+export async function setStoredFcmToken(token: string): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.fcmDeviceToken, token);
+}
+
+export async function clearStoredFcmToken(): Promise<void> {
+  await AsyncStorage.removeItem(STORAGE_KEYS.fcmDeviceToken);
+}
+
+export async function getStoredThemeScheme(): Promise<'light' | 'dark' | null> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEYS.themeScheme);
+  if (raw === 'light' || raw === 'dark') return raw;
+  return null;
+}
+
+export async function setStoredThemeScheme(scheme: 'light' | 'dark'): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.themeScheme, scheme);
 }
