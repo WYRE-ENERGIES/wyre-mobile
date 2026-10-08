@@ -4,7 +4,7 @@
     "slug": "wyre-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/wyre-launcher-icon.png",
+    "icon": "./assets/images/wyre-app-icon.png",
     "scheme": "wyreapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -26,8 +26,9 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#5C12A7",
-        "foregroundImage": "./assets/images/wyre-launcher-icon.png",
-        "backgroundImage": "./assets/images/android-icon-background.png"
+        "foregroundImage": "./assets/images/wyre-adaptive-foreground.png",
+        "backgroundImage": "./assets/images/wyre-adaptive-background.png",
+        "monochromeImage": "./assets/images/wyre-adaptive-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
