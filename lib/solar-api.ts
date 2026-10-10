@@ -189,9 +189,9 @@ export async function fetchSolarLiveOverlay(branchId: number): Promise<SolarLive
 }
 
 export async function fetchSolarDashboard(branchId: number) {
-  const [overviewRes, yieldRes, siteRes, liveOverlay] = await Promise.all([
-    APIService.get(`solar/overview/${branchId}/`),
-    APIService.get(`solar/yield/${branchId}/`),
+  const [overview, yieldData, siteRes, liveOverlay] = await Promise.all([
+    fetchSolarOverview(branchId),
+    fetchSolarYield(branchId),
     APIService.get(`solar/site-status/${branchId}/`),
     fetchSolarLiveOverlay(branchId).catch(() => ({
       message: SOLAR_OVERLAY_FALLBACK_MESSAGE,
@@ -199,17 +199,13 @@ export async function fetchSolarDashboard(branchId: number) {
     })),
   ]);
 
-  const overviewRaw = unwrapData(overviewRes);
-  const yieldRaw = unwrapData(yieldRes);
   const siteRaw = unwrapData(siteRes);
 
   return {
-    overview: overviewRaw as SolarOverview,
-    yield: parseSolarYield(yieldRaw),
+    overview,
+    yield: yieldData,
     siteStatus: siteRaw as SolarSiteStatus,
     overlay: mergeSolarOverlays([
-      parseSolarLiveOverlay(overviewRaw),
-      parseSolarLiveOverlay(yieldRaw),
       parseSolarLiveOverlay(siteRaw),
       liveOverlay,
     ]),
