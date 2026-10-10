@@ -1,21 +1,36 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { fetchSolarDashboard } from '@/lib/solar-api';
-import type { SolarOverview, SolarSiteStatus, SolarYield } from '@/lib/solar-types';
+import { fetchSolarDashboard, fetchSolarLiveOverlay } from '@/lib/solar-api';
+import {
+  SOLAR_OVERLAY_FALLBACK_MESSAGE,
+  type SolarLiveOverlay,
+  type SolarOverview,
+  type SolarSiteStatus,
+  type SolarYield,
+} from '@/lib/solar-types';
 
 type SolarOverviewState = {
   overview: SolarOverview | null;
   yield: SolarYield | null;
   siteStatus: SolarSiteStatus | null;
+  overlay: SolarLiveOverlay;
+  overlayDismissed: boolean;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
+};
+
+const INITIAL_OVERLAY: SolarLiveOverlay = {
+  message: SOLAR_OVERLAY_FALLBACK_MESSAGE,
+  isOverlay: false,
 };
 
 const INITIAL_STATE: SolarOverviewState = {
   overview: null,
   yield: null,
   siteStatus: null,
+  overlay: INITIAL_OVERLAY,
+  overlayDismissed: false,
   loading: true,
   refreshing: false,
   error: null,
@@ -43,15 +58,20 @@ export function useSolarOverview(branchId: number | null) {
       }));
 
       try {
-        const data = await fetchSolarDashboard(branchId);
-        setState({
+        const [data, overlay] = await Promise.all([
+          fetchSolarDashboard(branchId),
+          fetchSolarLiveOverlay(branchId).catch(() => INITIAL_OVERLAY),
+        ]);
+        setState((current) => ({
           overview: data.overview,
           yield: data.yield,
           siteStatus: data.siteStatus,
+          overlay,
+          overlayDismissed: overlay.isOverlay ? current.overlayDismissed : false,
           loading: false,
           refreshing: false,
           error: null,
-        });
+        }));
       } catch (error: unknown) {
         const message =
           error instanceof Error ? error.message : 'Unable to load solar overview.';
@@ -72,5 +92,22 @@ export function useSolarOverview(branchId: number | null) {
 
   const refresh = useCallback(() => load(true), [load]);
 
-  return { ...state, refresh };
+  const dismissOverlay = useCallback(() => {
+    setState((current) => ({ ...current, overlayDismissed: true }));
+  }, []);
+
+  return {
+    overview: state.overview,
+    yield: state.yield,
+    siteStatus: state.siteStatus,
+    loading: state.loading,
+    refreshing: state.refreshing,
+    error: state.error,
+    refresh,
+    overlay: {
+      visible: state.overlay.isOverlay && !state.overlayDismissed,
+      message: state.overlay.message,
+      dismiss: dismissOverlay,
+    },
+  };
 }

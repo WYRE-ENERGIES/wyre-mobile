@@ -15,6 +15,7 @@ import { NoSolarAccess } from '@/components/solar/no-solar-access';
 import { SiteStatusCard } from '@/components/solar/site-status-card';
 import { SiteStatusEnlargeSheet } from '@/components/solar/site-status-enlarge-sheet';
 import { SolarHomeHeader } from '@/components/solar/solar-home-header';
+import { SolarServiceOverlayModal } from '@/components/solar/solar-service-overlay-modal';
 import { SourcesDetailSheet } from '@/components/solar/sources-detail-sheet';
 import { SourcesGrid } from '@/components/solar/sources-grid';
 import { DashboardScreen } from '@/components/wyre/dashboard-screen';
@@ -26,12 +27,25 @@ import { getBranchLabel, getUserDisplayName } from '@/lib/user-display';
 import type { YieldTabKey } from '@/lib/solar-types';
 import { useAppSelector } from '@/redux/hooks';
 
-function SolarDashboard({ children }: { children: ReactNode }) {
+function SolarDashboard({
+  children,
+  overlay,
+}: {
+  children: ReactNode;
+  overlay?: { visible: boolean; message: string; dismiss: () => void };
+}) {
   return (
     <DashboardScreen
       darkGradientColors={['#090513', '#270850', '#08020E']}
       darkGradientLocations={[0, 0.48, 1]}>
       {children}
+      {overlay ? (
+        <SolarServiceOverlayModal
+          visible={overlay.visible}
+          message={overlay.message}
+          onCancel={overlay.dismiss}
+        />
+      ) : null}
     </DashboardScreen>
   );
 }
@@ -46,7 +60,7 @@ export function SolarHomeContent() {
     branchLabel && !branchLabel.startsWith('Branch #')
       ? branchLabel
       : getUserDisplayName(userData);
-  const { overview, yield: yieldData, siteStatus, loading, refreshing, error, refresh } =
+  const { overview, yield: yieldData, siteStatus, loading, refreshing, error, refresh, overlay } =
     useSolarOverview(hasSolar ? branchId : null);
 
   const [selected, setSelected] = useState<YieldTabKey>('load');
@@ -64,7 +78,7 @@ export function SolarHomeContent() {
 
   if (!branchId) {
     return (
-      <SolarDashboard>
+      <SolarDashboard overlay={overlay}>
         <SolarHomeHeader siteName={siteName} />
         <View style={styles.centered}>
           <Text style={[styles.errorTitle, { color: colors.textOnPage }]}>Site not linked</Text>
@@ -78,7 +92,7 @@ export function SolarHomeContent() {
 
   if (loading && !overview) {
     return (
-      <SolarDashboard>
+      <SolarDashboard overlay={overlay}>
         <SolarHomeHeader siteName={siteName} />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.accent} />
@@ -92,7 +106,7 @@ export function SolarHomeContent() {
 
   if (error && !overview) {
     return (
-      <SolarDashboard>
+      <SolarDashboard overlay={overlay}>
         <SolarHomeHeader siteName={siteName} />
         <View style={styles.centered}>
           <Text style={[styles.errorTitle, { color: colors.textOnPage }]}>
@@ -110,7 +124,7 @@ export function SolarHomeContent() {
   }
 
   return (
-    <SolarDashboard>
+    <SolarDashboard overlay={overlay}>
       <SolarHomeHeader siteName={siteName} />
       <ScrollView
         contentContainerStyle={styles.scroll}

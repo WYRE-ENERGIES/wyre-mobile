@@ -8,9 +8,11 @@ import type {
   EnergyYieldTab,
   SolarHourlyChart,
   SolarHourlyPoint,
+  SolarLiveOverlay,
   SolarOverview,
   SolarSiteStatus,
   SolarYield,
+  SOLAR_OVERLAY_FALLBACK_MESSAGE,
   YieldTabKey,
 } from '@/lib/solar-types';
 
@@ -151,6 +153,24 @@ export async function fetchSolarYield(branchId: number): Promise<SolarYield> {
 export async function fetchSolarSiteStatus(branchId: number): Promise<SolarSiteStatus> {
   const response = await APIService.get(`solar/site-status/${branchId}/`);
   return unwrapData<SolarSiteStatus>(response);
+}
+
+export function parseSolarLiveOverlay(raw: unknown): SolarLiveOverlay {
+  const row = asRecord(raw);
+  const overlay = asRecord(row.overlay);
+  const message =
+    typeof overlay.message === 'string' && overlay.message.trim()
+      ? overlay.message.trim()
+      : SOLAR_OVERLAY_FALLBACK_MESSAGE;
+  return {
+    message,
+    isOverlay: overlay.is_overlay === true,
+  };
+}
+
+export async function fetchSolarLiveOverlay(branchId: number): Promise<SolarLiveOverlay> {
+  const response = await APIService.get(`solar/live/${branchId}/`);
+  return parseSolarLiveOverlay(unwrapData(response));
 }
 
 export async function fetchSolarDashboard(branchId: number) {
