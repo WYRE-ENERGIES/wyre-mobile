@@ -168,19 +168,52 @@ export function parseSolarLiveOverlay(raw: unknown): SolarLiveOverlay {
   };
 }
 
+export function mergeSolarOverlays(overlays: SolarLiveOverlay[]): SolarLiveOverlay {
+  const active = overlays.filter((item) => item.isOverlay);
+  if (active.length === 0) {
+    return {
+      message: SOLAR_OVERLAY_FALLBACK_MESSAGE,
+      isOverlay: false,
+    };
+  }
+  const custom = active.find((item) => item.message !== SOLAR_OVERLAY_FALLBACK_MESSAGE);
+  return {
+    isOverlay: true,
+    message: (custom ?? active[0]).message,
+  };
+}
+
 export async function fetchSolarLiveOverlay(branchId: number): Promise<SolarLiveOverlay> {
   const response = await APIService.get(`solar/live/${branchId}/`);
   return parseSolarLiveOverlay(unwrapData(response));
 }
 
 export async function fetchSolarDashboard(branchId: number) {
-  const [overview, yieldData, siteStatus] = await Promise.all([
-    fetchSolarOverview(branchId),
-    fetchSolarYield(branchId),
-    fetchSolarSiteStatus(branchId),
+  const [overviewRes, yieldRes, siteRes, liveOverlay] = await Promise.all([
+    APIService.get(`solar/overview/${branchId}/`),
+    APIService.get(`solar/yield/${branchId}/`),
+    APIService.get(`solar/site-status/${branchId}/`),
+    fetchSolarLiveOverlay(branchId).catch(() => ({
+      message: SOLAR_OVERLAY_FALLBACK_MESSAGE,
+      isOverlay: false,
+    })),
   ]);
 
-  return { overview, yield: yieldData, siteStatus };
+  const overviewRaw = unwrapData(overviewRes);
+  const yieldRaw = unwrapData(yieldRes);
+  const siteRaw = unwrapData(siteRes);
+
+  return {
+    overview: overviewRaw as SolarOverview,
+    yield: parseSolarYield(yieldRaw),
+    siteStatus: siteRaw as SolarSiteStatus,
+    overlay: mergeSolarOverlays([
+      parseSolarLiveOverlay(overviewRaw),
+      parseSolarLiveOverlay(yieldRaw),
+      parseSolarLiveOverlay(siteRaw),
+      liveOverlay,
+    ]),
+  };
 }
 
 export async function fetchHourlyChart(

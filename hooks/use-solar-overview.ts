@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { fetchSolarDashboard, fetchSolarLiveOverlay } from '@/lib/solar-api';
+import { fetchSolarDashboard } from '@/lib/solar-api';
 import {
   SOLAR_OVERLAY_FALLBACK_MESSAGE,
   type SolarLiveOverlay,
@@ -58,16 +58,13 @@ export function useSolarOverview(branchId: number | null) {
       }));
 
       try {
-        const [data, overlay] = await Promise.all([
-          fetchSolarDashboard(branchId),
-          fetchSolarLiveOverlay(branchId).catch(() => INITIAL_OVERLAY),
-        ]);
+        const data = await fetchSolarDashboard(branchId);
         setState((current) => ({
           overview: data.overview,
           yield: data.yield,
           siteStatus: data.siteStatus,
-          overlay,
-          overlayDismissed: overlay.isOverlay ? current.overlayDismissed : false,
+          overlay: data.overlay,
+          overlayDismissed: data.overlay.isOverlay ? current.overlayDismissed : false,
           loading: false,
           refreshing: false,
           error: null,
