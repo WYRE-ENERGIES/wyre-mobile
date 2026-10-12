@@ -1,17 +1,19 @@
 import type { AxiosResponse } from 'axios';
 
 import { APIService } from '@/config/api/apiServices';
-import type {
-  BatteryYieldPeriod,
-  BatteryYieldTab,
-  EnergyYieldPeriod,
-  EnergyYieldTab,
-  SolarHourlyChart,
-  SolarHourlyPoint,
-  SolarOverview,
-  SolarSiteStatus,
-  SolarYield,
-  YieldTabKey,
+import {
+  SOLAR_OVERLAY_FALLBACK_MESSAGE,
+  type BatteryYieldPeriod,
+  type BatteryYieldTab,
+  type EnergyYieldPeriod,
+  type EnergyYieldTab,
+  type SolarHourlyChart,
+  type SolarHourlyPoint,
+  type SolarLiveOverlay,
+  type SolarOverview,
+  type SolarSiteStatus,
+  type SolarYield,
+  type YieldTabKey,
 } from '@/lib/solar-types';
 
 function getMonthYear(date: Date) {
@@ -153,14 +155,61 @@ export async function fetchSolarSiteStatus(branchId: number): Promise<SolarSiteS
   return unwrapData<SolarSiteStatus>(response);
 }
 
+export function parseSolarLiveOverlay(raw: unknown): SolarLiveOverlay {
+  const row = asRecord(raw);
+  const overlay = asRecord(row.overlay);
+  const message =
+    typeof overlay.message === 'string' && overlay.message.trim()
+      ? overlay.message.trim()
+      : SOLAR_OVERLAY_FALLBACK_MESSAGE;
+  return {
+    message,
+    isOverlay: overlay.is_overlay === true,
+  };
+}
+
+export function mergeSolarOverlays(overlays: SolarLiveOverlay[]): SolarLiveOverlay {
+  const active = overlays.filter((item) => item.isOverlay);
+  if (active.length === 0) {
+    return {
+      message: SOLAR_OVERLAY_FALLBACK_MESSAGE,
+      isOverlay: false,
+    };
+  }
+  const custom = active.find((item) => item.message !== SOLAR_OVERLAY_FALLBACK_MESSAGE);
+  return {
+    isOverlay: true,
+    message: (custom ?? active[0]).message,
+  };
+}
+
+export async function fetchSolarLiveOverlay(branchId: number): Promise<SolarLiveOverlay> {
+  const response = await APIService.get(`solar/live/${branchId}/`);
+  return parseSolarLiveOverlay(unwrapData(response));
+}
+
 export async function fetchSolarDashboard(branchId: number) {
-  const [overview, yieldData, siteStatus] = await Promise.all([
+  const [overview, yieldData, siteRes, liveOverlay] = await Promise.all([
     fetchSolarOverview(branchId),
     fetchSolarYield(branchId),
-    fetchSolarSiteStatus(branchId),
+    APIService.get(`solar/site-status/${branchId}/`),
+    fetchSolarLiveOverlay(branchId).catch(() => ({
+      message: SOLAR_OVERLAY_FALLBACK_MESSAGE,
+      isOverlay: false,
+    })),
   ]);
 
-  return { overview, yield: yieldData, siteStatus };
+  const siteRaw = unwrapData(siteRes);
+
+  return {
+    overview,
+    yield: yieldData,
+    siteStatus: siteRaw as SolarSiteStatus,
+    overlay: mergeSolarOverlays([
+      parseSolarLiveOverlay(siteRaw),
+      liveOverlay,
+    ]),
+  };
 }
 
 export async function fetchHourlyChart(

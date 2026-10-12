@@ -104,3 +104,11 @@ export type SolarHourlyPoint = {
 export type SolarHourlyChart = {
   hours: SolarHourlyPoint[];
 };
+
+export const SOLAR_OVERLAY_FALLBACK_MESSAGE =
+  'We are experiencing a service disruption. We will be back shortly.';
+
+export type SolarLiveOverlay = {
+  message: string;
+  isOverlay: boolean;
+};
