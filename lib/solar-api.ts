@@ -1,19 +1,19 @@
 import type { AxiosResponse } from 'axios';
 
 import { APIService } from '@/config/api/apiServices';
-import type {
-  BatteryYieldPeriod,
-  BatteryYieldTab,
-  EnergyYieldPeriod,
-  EnergyYieldTab,
-  SolarHourlyChart,
-  SolarHourlyPoint,
-  SolarLiveOverlay,
-  SolarOverview,
-  SolarSiteStatus,
-  SolarYield,
+import {
   SOLAR_OVERLAY_FALLBACK_MESSAGE,
-  YieldTabKey,
+  type BatteryYieldPeriod,
+  type BatteryYieldTab,
+  type EnergyYieldPeriod,
+  type EnergyYieldTab,
+  type SolarHourlyChart,
+  type SolarHourlyPoint,
+  type SolarLiveOverlay,
+  type SolarOverview,
+  type SolarSiteStatus,
+  type SolarYield,
+  type YieldTabKey,
 } from '@/lib/solar-types';
 
 function getMonthYear(date: Date) {
