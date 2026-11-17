@@ -81,7 +81,10 @@ export async function requestPushPermission(): Promise<boolean> {
 
   const api = getMessagingApi();
   const instance = getMessagingInstance();
-  if (!api || !instance) {
+  // On Android, RNFB's requestPermission() always resolves AUTHORIZED without
+  // prompting, so Android 13+ (POST_NOTIFICATIONS) would stay silently blocked.
+  // expo-notifications shows the real runtime prompt.
+  if (Platform.OS === 'android' || !api || !instance) {
     const current = await Notifications.getPermissionsAsync();
     let status = current.status;
     if (status !== 'granted') {

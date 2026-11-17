@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 import { saveNotificationToInbox } from '@/lib/notification-inbox';
 import { handleNotificationOpen } from '@/lib/notification-routing';
@@ -10,6 +11,8 @@ let attached = false;
 const unsubscribers: Unsubscribe[] = [];
 
 export function configureNotificationPresentation(): void {
+  // Web has no native notification delivery (web push is not implemented yet).
+  if (Platform.OS === 'web') return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -36,7 +39,7 @@ function contentFromNotification(
  * Server-backed FCM messages refresh from the API instead of being stored locally.
  */
 export function attachExpoNotificationInboxListeners(): Unsubscribe {
-  if (attached) {
+  if (attached || Platform.OS === 'web') {
     return () => undefined;
   }
 

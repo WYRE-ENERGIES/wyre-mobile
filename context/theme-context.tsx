@@ -22,6 +22,13 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+/** react-native-web has no Appearance.setColorScheme; the in-app theme still applies via context. */
+function applyAppearance(next: ThemeScheme) {
+  if (typeof Appearance.setColorScheme === 'function') {
+    Appearance.setColorScheme(next);
+  }
+}
+
 export function AppThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
   const [scheme, setSchemeState] = useState<ThemeScheme>(systemScheme === 'dark' ? 'dark' : 'light');
@@ -35,7 +42,7 @@ export function AppThemeProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         const next = stored ?? (systemScheme === 'dark' ? 'dark' : 'light');
         setSchemeState(next);
-        Appearance.setColorScheme(next);
+        applyAppearance(next);
       })
       .finally(() => {
         if (!cancelled) setReady(true);
@@ -48,7 +55,7 @@ export function AppThemeProvider({ children }: { children: ReactNode }) {
 
   const setScheme = useCallback((next: ThemeScheme) => {
     setSchemeState(next);
-    Appearance.setColorScheme(next);
+    applyAppearance(next);
     void setStoredThemeScheme(next);
   }, []);
 

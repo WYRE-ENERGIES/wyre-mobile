@@ -1,4 +1,4 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from '@/components/ui/date-time-picker';
 import { Picker } from '@react-native-picker/picker';
 import { useState } from 'react';
 import {
@@ -34,6 +34,23 @@ export function ReportDateField({
   const { colors, isDark } = useAppTheme();
   const [open, setOpen] = useState(false);
   const selected = parseISODate(value) || new Date();
+
+  if (Platform.OS === 'web') {
+    // Web: the field itself is a browser date input (no separate picker sheet).
+    return (
+      <View style={[styles.field, style]}>
+        <Text style={[styles.label, { color: colors.textOnCardSecondary }]}>{label}</Text>
+        <DateTimePicker
+          value={selected}
+          mode="date"
+          maximumDate={maximumDate}
+          onChange={(event, date) => {
+            if (event.type === 'set' && date) onChange(toISODate(date));
+          }}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.field, style]}>

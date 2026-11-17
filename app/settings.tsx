@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { AuthButton } from '@/components/auth/auth-button';
 import { AuthTextField } from '@/components/auth/auth-text-field';
@@ -145,15 +145,20 @@ export default function SettingsScreen() {
           value={isDark}
           onValueChange={(next) => setScheme(next ? 'dark' : 'light')}
         />
-        <Divider />
-        <ToggleRow
-          icon="bell.fill"
-          title="Push notifications"
-          body="Energy alerts and system updates"
-          value={notificationsEnabled}
-          disabled={notificationsLoading}
-          onValueChange={onToggleNotifications}
-        />
+        {/* Push is native-only for now (web push: docs/PWA_PUSH_PLAN.md). */}
+        {Platform.OS !== 'web' ? (
+          <>
+            <Divider />
+            <ToggleRow
+              icon="bell.fill"
+              title="Push notifications"
+              body="Energy alerts and system updates"
+              value={notificationsEnabled}
+              disabled={notificationsLoading}
+              onValueChange={onToggleNotifications}
+            />
+          </>
+        ) : null}
       </SettingsGroup>
 
       <SettingsGroup title="Energy & alerts">
@@ -163,13 +168,17 @@ export default function SettingsScreen() {
           body="Battery, capacity, and delivery rules"
           onPress={() => router.push('/(tabs)/target')}
         />
-        <Divider />
-        <LinkRow
-          icon="slider.horizontal.3"
-          title="Device notification settings"
-          body="Sound, banners, and permissions"
-          onPress={openSystemNotificationSettings}
-        />
+        {Platform.OS !== 'web' ? (
+          <>
+            <Divider />
+            <LinkRow
+              icon="slider.horizontal.3"
+              title="Device notification settings"
+              body="Sound, banners, and permissions"
+              onPress={openSystemNotificationSettings}
+            />
+          </>
+        ) : null}
       </SettingsGroup>
 
       <SettingsGroup title="Security">

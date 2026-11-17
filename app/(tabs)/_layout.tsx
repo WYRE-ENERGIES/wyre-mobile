@@ -168,6 +168,8 @@ function TabNavigator() {
     }
   }
 
+  // NativeTabs (system tab bar) is iOS only. Android and web use the regular
+  // expo-router <Tabs> below with the same tabs, order and visibility rules.
   if (Platform.OS === 'ios') {
     if (!hasSolar) {
       return (

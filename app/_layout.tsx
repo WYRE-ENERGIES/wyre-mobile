@@ -6,6 +6,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
 import 'react-native-reanimated';
 
+import '@/lib/web-polyfills';
+
+import { PwaSupport } from '@/components/web/pwa-support';
 import { setUnauthorizedHandler } from '@/config/api/apiServices';
 import { AppThemeProvider, useAppTheme } from '@/context/theme-context';
 import {
@@ -156,6 +159,7 @@ function RootNavigator() {
         </Stack>
       </AuthBootstrap>
       <StatusBar style={isDark ? 'light' : 'dark'} />
+      <PwaSupport />
     </ThemeProvider>
   );
 }

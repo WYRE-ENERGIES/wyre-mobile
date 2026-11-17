@@ -45,7 +45,7 @@ export function ScorecardSummary({ metrics, dateLabel }: ScorecardSummaryProps) 
         </View>
       ) : withReadings.length === 0 ? (
         <Text style={[styles.empty, { color: colors.textOnPageMuted }]}>
-          Readings will show here once this month's data is available.
+          Readings will show here once this month&apos;s data is available.
         </Text>
       ) : null}
     </View>

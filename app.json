@@ -18,7 +18,9 @@
       "bundleIdentifier": "com.wyreng.ems",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -35,7 +37,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./public/favicon.png"
     },
     "plugins": [
       "expo-router",
@@ -76,7 +78,10 @@
           "ios": {
             "useFrameworks": "static",
             "buildReactNativeFromSource": true,
-            "forceStaticLinking": ["RNFBApp", "RNFBMessaging"]
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBMessaging"
+            ]
           }
         }
       ],
@@ -85,6 +90,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1f1ce2e3-0a90-4595-8d70-0d569de07113"
+      }
+    },
+    "owner": "ejehameh"
   }
 }

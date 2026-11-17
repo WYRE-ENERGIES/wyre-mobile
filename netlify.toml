@@ -1,0 +1,25 @@
+[build]
+  command = "npm run build:web"
+  publish = "dist"
+
+# SPA fallback: existing files (and pre-rendered *.html routes) are served first,
+# everything else (e.g. /notification/123) gets the app shell.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+
+[[headers]]
+  for = "/_expo/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
